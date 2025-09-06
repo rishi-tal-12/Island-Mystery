@@ -1,91 +1,100 @@
-import { useState } from "react";
-import { toast } from "@/components/ui/use-toast";
-import LandingScreen from "@/components/LandingScreen";
-import HowToPlay from "@/components/HowToPlay";
-import GameMap from "@/components/GameMap";
-import IslandViewHex from "@/components/IslandViewHex";
-import PlayerActionDialog from "@/components/PlayerActionDialog";
+"use client"
+
+import { useState } from "react"
+import { toast } from "@/components/ui/use-toast"
+import LandingScreen from "@/components/LandingScreen"
+import HowToPlay from "@/components/HowToPlay"
+import GameMap from "@/components/GameMap"
+import IslandViewHex from "@/components/IslandViewHex"
+import PlayerActionDialog from "@/components/PlayerActionDialog"
+import AttackResultModal, { type AttackResult } from "@/components/AttackResultModal"
+import TradeProposalModal from "@/components/TradeProposalModal"
 
 interface Island {
-  id: string;
-  name: string;
-  owner: string;
-  isPlayer: boolean;
-  position: { x: number; y: number };
-  power: number;
+  id: string
+  name: string
+  owner: string
+  isPlayer: boolean
+  position: { x: number; y: number }
+  power: number
 }
 
-type GameState = "landing" | "howToPlay" | "map" | "island";
+type GameState = "landing" | "howToPlay" | "map" | "island"
 
 const Index = () => {
-  const [gameState, setGameState] = useState<GameState>("landing");
-  const [selectedIsland, setSelectedIsland] = useState<Island | null>(null);
-  const [showActionDialog, setShowActionDialog] = useState(false);
+  const [gameState, setGameState] = useState<GameState>("landing")
+  const [selectedIsland, setSelectedIsland] = useState<Island | null>(null)
+  const [showActionDialog, setShowActionDialog] = useState(false)
+
+  const [showAttackResult, setShowAttackResult] = useState(false)
+  const [showTradeProposal, setShowTradeProposal] = useState(false)
+  const [attackResult, setAttackResult] = useState<AttackResult | null>(null)
 
   const handleSelectIsland = (island: Island) => {
     if (island.isPlayer) {
-      setSelectedIsland(island);
-      setGameState("island");
+      setSelectedIsland(island)
+      setGameState("island")
     } else {
-      setSelectedIsland(island);
-      setShowActionDialog(true);
+      setSelectedIsland(island)
+      setShowActionDialog(true)
     }
-  };
+  }
 
   const handleBackToMap = () => {
-    setGameState("map");
-    setSelectedIsland(null);
-  };
+    setGameState("map")
+    setSelectedIsland(null)
+  }
 
   const handleEnterGame = () => {
-    setGameState("map");
-  };
+    setGameState("map")
+  }
 
   const handleHowToPlay = () => {
-    setGameState("howToPlay");
-  };
+    setGameState("howToPlay")
+  }
 
   const handleBackToLanding = () => {
-    setGameState("landing");
-  };
+    setGameState("landing")
+  }
 
   const handleAttack = (island: Island) => {
-    toast({
-      title: "Attack Initiated!",
-      description: `Launching attack on ${island.name}...`,
-    });
-  };
+    const playerPower = 100
+    const enemyPower = island.power
+    const attackSuccess = Math.random() > 0.4 // 60% chance of success
+    const goldEarned = attackSuccess ? Math.floor(Math.random() * 50) + 20 : 0
+
+    setAttackResult({
+      won: attackSuccess,
+      goldEarned,
+      targetIsland: island.name,
+    })
+
+    setShowAttackResult(true)
+    setShowActionDialog(false)
+  }
 
   const handleTrade = (island: Island) => {
+    setShowTradeProposal(true)
+    setShowActionDialog(false)
+  }
+
+  const handleSubmitTrade = (trade: any) => {
     toast({
-      title: "Trade Proposal",
-      description: `Sending trade request to ${island.owner}...`,
-    });
-  };
+      title: "Trade Proposal Sent!",
+      description: `Sent trade offer to ${trade.targetIsland}`,
+    })
+    setShowTradeProposal(false)
+  }
 
   return (
     <>
-      {gameState === "landing" && (
-        <LandingScreen 
-          onEnterGame={handleEnterGame} 
-          onHowToPlay={handleHowToPlay}
-        />
-      )}
+      {gameState === "landing" && <LandingScreen onEnterGame={handleEnterGame} onHowToPlay={handleHowToPlay} />}
 
-      {gameState === "howToPlay" && (
-        <HowToPlay onBack={handleBackToLanding} />
-      )}
+      {gameState === "howToPlay" && <HowToPlay onBack={handleBackToLanding} />}
 
-      {gameState === "map" && (
-        <GameMap onSelectIsland={handleSelectIsland} />
-      )}
-      
-      {gameState === "island" && selectedIsland && (
-        <IslandViewHex 
-          island={selectedIsland} 
-          onBack={handleBackToMap}
-        />
-      )}
+      {gameState === "map" && <GameMap onSelectIsland={handleSelectIsland} />}
+
+      {gameState === "island" && selectedIsland && <IslandViewHex island={selectedIsland} onBack={handleBackToMap} />}
 
       <PlayerActionDialog
         island={selectedIsland}
@@ -94,8 +103,17 @@ const Index = () => {
         onAttack={handleAttack}
         onTrade={handleTrade}
       />
-    </>
-  );
-};
 
-export default Index;
+      <AttackResultModal isOpen={showAttackResult} onClose={() => setShowAttackResult(false)} result={attackResult} />
+
+      <TradeProposalModal
+        isOpen={showTradeProposal}
+        onClose={() => setShowTradeProposal(false)}
+        targetIsland={selectedIsland}
+        onSubmitTrade={handleSubmitTrade}
+      />
+    </>
+  )
+}
+
+export default Index
