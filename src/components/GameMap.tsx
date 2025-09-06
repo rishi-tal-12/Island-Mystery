@@ -1,20 +1,21 @@
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import oceanBackground from "@/assets/ocean-background.jpg";
-import islandMain from "@/assets/island-main.jpg";
+"use client"
+
+import { useState } from "react"
+import { Card } from "@/components/ui/card"
+import oceanBackground from "@/assets/ocean-background.jpg"
+import islandMain from "@/assets/island-main.jpg"
 
 interface Island {
-  id: string;
-  name: string;
-  owner: string;
-  isPlayer: boolean;
-  position: { x: number; y: number };
-  power: number;
+  id: string
+  name: string
+  owner: string
+  isPlayer: boolean
+  position: { x: number; y: number }
+  power: number
 }
 
 interface GameMapProps {
-  onSelectIsland: (island: Island) => void;
+  onSelectIsland: (island: Island) => void
 }
 
 const MOCK_ISLANDS: Island[] = [
@@ -23,24 +24,21 @@ const MOCK_ISLANDS: Island[] = [
   { id: "3", name: "Island Beta", owner: "Player 3", isPlayer: false, position: { x: 15, y: 75 }, power: 120 },
   { id: "4", name: "Island Gamma", owner: "Player 4", isPlayer: false, position: { x: 85, y: 65 }, power: 95 },
   { id: "5", name: "Island Delta", owner: "Player 5", isPlayer: false, position: { x: 50, y: 80 }, power: 110 },
-];
+]
 
 export default function GameMap({ onSelectIsland }: GameMapProps) {
-  const [selectedIsland, setSelectedIsland] = useState<string | null>(null);
+  const [selectedIsland, setSelectedIsland] = useState<string | null>(null)
 
   const handleIslandClick = (island: Island) => {
-    setSelectedIsland(island.id);
-    onSelectIsland(island);
-  };
+    setSelectedIsland(island.id)
+    onSelectIsland(island)
+  }
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {/* Ocean Background */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${oceanBackground})` }}
-      />
-      
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${oceanBackground})` }} />
+
       {/* Game Title */}
       <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-10">
         <Card className="bg-gradient-to-r from-accent to-accent/80 border-accent/50 shadow-lg">
@@ -61,9 +59,11 @@ export default function GameMap({ onSelectIsland }: GameMapProps) {
           }}
           onClick={() => handleIslandClick(island)}
         >
-          <div className={`relative ${selectedIsland === island.id ? 'ring-4 ring-accent ring-opacity-60 rounded-full' : ''}`}>
+          <div
+            className={`relative ${selectedIsland === island.id ? "ring-4 ring-accent ring-opacity-60 rounded-full" : ""}`}
+          >
             <img
-              src={islandMain}
+              src={islandMain || "/placeholder.svg"}
               alt={island.name}
               className="w-24 h-24 rounded-full shadow-lg border-4 border-white/50"
             />
@@ -73,7 +73,7 @@ export default function GameMap({ onSelectIsland }: GameMapProps) {
               </div>
             )}
           </div>
-          
+
           <Card className="mt-2 bg-card/90 backdrop-blur-sm border-border/50 shadow-md">
             <div className="px-3 py-2 text-center">
               <p className="font-semibold text-sm text-card-foreground">{island.name}</p>
@@ -82,23 +82,6 @@ export default function GameMap({ onSelectIsland }: GameMapProps) {
           </Card>
         </div>
       ))}
-
-      {/* Legend */}
-      <Card className="absolute bottom-8 left-8 bg-card/90 backdrop-blur-sm border-border/50 shadow-lg">
-        <div className="p-4">
-          <h3 className="font-semibold text-card-foreground mb-2">Legend</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-accent rounded-full border border-white"></div>
-              <span className="text-muted-foreground">Your Island</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-secondary rounded-full border border-white"></div>
-              <span className="text-muted-foreground">Other Players</span>
-            </div>
-          </div>
-        </div>
-      </Card>
     </div>
-  );
+  )
 }

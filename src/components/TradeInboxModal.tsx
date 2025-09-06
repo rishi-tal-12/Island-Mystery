@@ -21,7 +21,13 @@ interface TradeInboxModalProps {
   isOpen: boolean
   onClose: () => void
   trades: TradeOffer[]
-  onAcceptTrade: (tradeId: string) => void
+  onAcceptTrade: (
+    tradeId: string,
+    offerType: "gold" | "wheat",
+    offerAmount: number,
+    requestType: "gold" | "wheat",
+    requestAmount: number,
+  ) => void
   onRejectTrade: (tradeId: string) => void
 }
 
@@ -34,6 +40,10 @@ export default function TradeInboxModal({
 }: TradeInboxModalProps) {
   const getResourceIcon = (type: "gold" | "wheat") => {
     return type === "gold" ? <Coins className="w-4 h-4 text-amber-400" /> : <Wheat className="w-4 h-4 text-amber-600" />
+  }
+
+  const handleAcceptTrade = (trade: TradeOffer) => {
+    onAcceptTrade(trade.id, trade.offerType, trade.offerAmount, trade.requestType, trade.requestAmount)
   }
 
   return (
@@ -99,7 +109,7 @@ export default function TradeInboxModal({
                   {/* Action Buttons */}
                   <div className="flex gap-3">
                     <Button
-                      onClick={() => onAcceptTrade(trade.id)}
+                      onClick={() => handleAcceptTrade(trade)}
                       className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white gap-2"
                     >
                       <Check className="w-4 h-4" />

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Mail, Shield, Clock } from "lucide-react"
+import { ArrowLeft, Plus, Mail, Shield, Clock, Hammer } from "lucide-react"
 import islandHex from "@/assets/island-hex.jpg"
 import farmIcon from "@/assets/farm-icon.jpg"
 import mineIcon from "@/assets/mine-icon.jpg"
@@ -11,8 +11,9 @@ import defenseIcon from "@/assets/defense-icon.jpg"
 import troopIcon from "@/assets/troop-icon.jpg"
 import wheatIcon from "@/assets/wheat-icon.jpg"
 import goldIcon from "@/assets/gold-icon.jpg"
-import TradeInboxModal from "./TradeInboxModal.tsx"
-import AttackHistoryModal from "./AttackHistoryModal.tsx"
+import TradeInboxModal from "./TradeInboxModal"
+import AttackHistoryModal from "./AttackHistoryModal"
+import BuildingSelectionModal from "./BuildingSelectionModal"
 
 interface Hex {
   id: string
@@ -120,9 +121,10 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
 
   const [showTradeInbox, setShowTradeInbox] = useState(false)
   const [showAttackHistory, setShowAttackHistory] = useState(false)
+  const [showBuildingSelection, setShowBuildingSelection] = useState(false)
   const [lastAttackTime, setLastAttackTime] = useState<Date | null>(null)
 
-  const [tradeOffers] = useState([
+  const [tradeOffers, setTradeOffers] = useState([
     {
       id: "1",
       fromPlayer: "Captain Hook",
@@ -179,14 +181,29 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
     return null
   }
 
-  const handleAcceptTrade = (tradeId: string) => {
-    console.log("Accepting trade:", tradeId)
-    // Implementation would handle the trade logic
+  const handleAcceptTrade = (
+    tradeId: string,
+    offerType: "gold" | "wheat",
+    offerAmount: number,
+    requestType: "gold" | "wheat",
+    requestAmount: number,
+  ) => {
+    // Update resources based on the trade
+    setResources((prev) => ({
+      ...prev,
+      [offerType]: prev[offerType] + offerAmount,
+      [requestType]: prev[requestType] - requestAmount,
+    }))
+
+    // Remove the accepted trade from the list
+    setTradeOffers((prev) => prev.filter((trade) => trade.id !== tradeId))
+    console.log("Trade accepted:", tradeId)
   }
 
   const handleRejectTrade = (tradeId: string) => {
-    console.log("Rejecting trade:", tradeId)
-    // Implementation would remove the trade from the list
+    // Remove the rejected trade from the list
+    setTradeOffers((prev) => prev.filter((trade) => trade.id !== tradeId))
+    console.log("Trade rejected:", tradeId)
   }
 
   const handleHexClick = (hex: Hex) => {
@@ -231,6 +248,10 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
     const building = BUILDING_TYPES.find((bt) => bt.type === buildingType)
     if (!building) return false
     return resources.wheat >= building.cost.wheat && resources.gold >= building.cost.gold
+  }
+
+  const handleBuildingSelect = (buildingType: Building["type"]) => {
+    setSelectedBuildingType(buildingType)
   }
 
   return (
@@ -295,6 +316,14 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
           <Shield className="w-4 h-4" />
           Attack History
         </Button>
+
+        <Button
+          onClick={() => setShowBuildingSelection(true)}
+          className="bg-green-600/80 hover:bg-green-600 text-white border-green-500/50 gap-2"
+        >
+          <Hammer className="w-4 h-4" />
+          Build {selectedBuildingType && `(${BUILDING_TYPES.find((bt) => bt.type === selectedBuildingType)?.name})`}
+        </Button>
       </div>
 
       {getAttackCooldown() && (
@@ -308,49 +337,6 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
           </div>
         </Card>
       )}
-
-      {/* Building Selection */}
-      <Card className="mb-6 bg-black/50 backdrop-blur-sm border-white/20">
-        <div className="p-4">
-          <h3 className="font-semibold text-white mb-3">Select Building to Place</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {BUILDING_TYPES.map((buildingType) => {
-              const affordable = canAfford(buildingType.type)
-              return (
-                <Button
-                  key={buildingType.type}
-                  variant={selectedBuildingType === buildingType.type ? "default" : "outline"}
-                  className={`flex flex-col gap-2 h-auto p-3 ${
-                    selectedBuildingType === buildingType.type
-                      ? "bg-primary hover:bg-primary/80"
-                      : affordable
-                        ? "bg-white/10 border-white/30 text-white hover:bg-white/20"
-                        : "bg-red-900/20 border-red-500/30 text-red-300 cursor-not-allowed"
-                  }`}
-                  disabled={!affordable}
-                  onClick={() =>
-                    setSelectedBuildingType(selectedBuildingType === buildingType.type ? null : buildingType.type)
-                  }
-                >
-                  <img
-                    src={buildingType.icon || "/placeholder.svg"}
-                    alt={buildingType.name}
-                    className="w-8 h-8 rounded"
-                  />
-                  <div className="text-xs text-center">
-                    <div className="font-semibold">{buildingType.name}</div>
-                    <div className="text-xs opacity-80">
-                      {buildingType.cost.wheat > 0 && `${buildingType.cost.wheat}🌾`}
-                      {buildingType.cost.wheat > 0 && buildingType.cost.gold > 0 && " "}
-                      {buildingType.cost.gold > 0 && `${buildingType.cost.gold}🪙`}
-                    </div>
-                  </div>
-                </Button>
-              )
-            })}
-          </div>
-        </div>
-      </Card>
 
       {/* Island View */}
       <div className="flex justify-center">
@@ -456,7 +442,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
         <div className="p-4">
           <h3 className="font-semibold text-white mb-2">Instructions</h3>
           <div className="text-sm text-white/80 space-y-1">
-            <p>• Select a building type above, then click on an empty unlocked hex to place it</p>
+            <p>• Click "Build" button to select a building type, then click on an empty unlocked hex to place it</p>
             <p>• Locked hexes (🔒) can be purchased for 50 Gold each to expand your island</p>
             <p>• Build farms and mines for daily resource production</p>
             <p>• Build defense towers and troop camps to increase your combat stats</p>
@@ -476,6 +462,14 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
         isOpen={showAttackHistory}
         onClose={() => setShowAttackHistory(false)}
         attackHistory={attackHistory}
+      />
+
+      <BuildingSelectionModal
+        isOpen={showBuildingSelection}
+        onClose={() => setShowBuildingSelection(false)}
+        buildings={BUILDING_TYPES}
+        resources={resources}
+        onSelectBuilding={handleBuildingSelect}
       />
     </div>
   )
