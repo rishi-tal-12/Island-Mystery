@@ -21,7 +21,7 @@ interface Island {
   power: number
 }
 
-type GameState = "landing" | "howToPlay" | "map" | "island" | "pvpWaiting" | "pvpBattle"
+type GameState = "landing" | "howToPlay" | "map" | "island" | "pvpWaiting" | "pvpBattle" | "pvpVictory"
 
 const Index = () => {
   const [gameState, setGameState] = useState<GameState>("landing")
@@ -61,6 +61,10 @@ const Index = () => {
 
   const handlePlayerConnected = () => {
     setGameState("pvpBattle")
+  }
+
+  const handlePVPVictory = () => {
+    setGameState("landing") // Return to main menu after victory
   }
 
   const handleBackToLanding = () => {
@@ -112,7 +116,7 @@ const Index = () => {
         <PVPWaitingScreen onPlayerConnected={handlePlayerConnected} onBack={handleBackToLanding} />
       )}
 
-      {gameState === "pvpBattle" && <PVPBattleScreen onBack={handleBackToLanding} />}
+      {gameState === "pvpBattle" && <PVPBattleScreen onBack={handleBackToLanding} onVictory={handlePVPVictory} />}
 
       <PlayerActionDialog
         island={selectedIsland}
