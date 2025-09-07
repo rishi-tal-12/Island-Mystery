@@ -1,12 +1,47 @@
 "use client"
 
-import { useState, useRef, useMemo } from "react"
-import { Canvas, useFrame } from "@react-three/fiber"
-import { OrbitControls, Sky, Environment } from "@react-three/drei"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
-import * as THREE from "three"
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, Text, Sky, Environment } from '@react-three/drei';
+import * as THREE from 'three';
+import { Button } from "./ui/button";
+import { Slider } from "./ui/slider";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Separator } from "./ui/separator";
+import { Crosshair, Target, Zap, RotateCcw, ArrowLeft } from 'lucide-react';
+import { contractService, BattleResult } from '../services/contractService';
+
+interface AttackResultModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  result: {
+    hit: boolean;
+    damage: number;
+    distance: number;
+  } | null;
+}
+
+function AttackResultModal({ isOpen, onClose, result }: AttackResultModalProps) {
+  if (!isOpen || !result) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
+        <h2 className="text-2xl font-bold mb-4 text-center">
+          {result.hit ? '🎯 Direct Hit!' : '💨 Miss!'}
+        </h2>
+        <div className="space-y-2 text-center">
+          <p>Distance from target: {result.distance.toFixed(2)}m</p>
+          {result.hit && <p>Damage dealt: {result.damage}</p>}
+        </div>
+        <Button onClick={onClose} className="w-full mt-4">
+          Continue Battle
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 interface PVPBattleScreenProps {
   onBack: () => void
@@ -17,7 +52,7 @@ function Cannonball({
   startPosition,
   targetPosition,
   onHit,
-  isActive,
+  isActive
 }: {
   startPosition: [number, number, number]
   targetPosition: [number, number, number]
@@ -74,7 +109,8 @@ function Explosion({ position, isActive }: { position: [number, number, number];
       const opacity = Math.max(0, 1 - (newScale - 2))
       groupRef.current.children.forEach((child) => {
         if (child instanceof THREE.Mesh && child.material instanceof THREE.Material) {
-          ;(child.material as any).opacity = opacity
+          const material = child.material as THREE.MeshBasicMaterial;
+          material.opacity = opacity;
         }
       })
     }
@@ -310,38 +346,154 @@ function Ocean() {
   )
 }
 
-export default function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
-  const [playerVelocity, setPlayerVelocity] = useState(0)
-  const [distance, setDistance] = useState(12.5)
+function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
+  const [azimuthalAngle, setAzimuthalAngle] = useState([45]);
+  const [verticalAngle, setVerticalAngle] = useState([45]);
+  const [cannonVelocity, setCannonVelocity] = useState([75]);
+  const [isFiring, setIsFiring] = useState(false);
+  const [showAttackResult, setShowAttackResult] = useState(false);
+  const [attackResult, setAttackResult] = useState<{
+    hit: boolean;
+    damage: number;
+    distance: number;
+  } | null>(null);
+  const [playerShipHealth, setPlayerShipHealth] = useState(100);
+  const [enemyShipHealth, setEnemyShipHealth] = useState(100);
+  const [cannonballs, setCannonballs] = useState<Array<{
+    id: number;
+    position: THREE.Vector3;
+    velocity: THREE.Vector3;
+    startTime: number;
+    contractResult?: BattleResult;
+  }>>([]);
+  const [nextCannonballId, setNextCannonballId] = useState(0);
+  const [isShipRegistered, setIsShipRegistered] = useState(false);
+  const [contractLoading, setContractLoading] = useState(false);
+  const [playerAddress, setPlayerAddress] = useState('');
+  const [enemyAddress, setEnemyAddress] = useState('');
 
-  const [azimuthalAngle, setAzimuthalAngle] = useState([45])
-  const [verticalAngle, setVerticalAngle] = useState([45])
-  const [cannonVelocity, setCannonVelocity] = useState([75])
-  const [isFiring, setIsFiring] = useState(false)
-  const [showExplosion, setShowExplosion] = useState(false)
-  const [enemyHit, setEnemyHit] = useState(false)
-  const [showVictory, setShowVictory] = useState(false)
+  // Ship positions - memoized to prevent useEffect dependency issues
+  const playerShipPosition = useMemo<[number, number, number]>(() => [-15, 0, 0], []);
+  const enemyShipPosition = useMemo<[number, number, number]>(() => [15, 0, 0], []);
+  const shipRadius = useMemo(() => 2, []); // Ship radius for hit detection
 
-  const handleFireCannon = () => {
-    if (isFiring) return
+  // Initialize contract integration
+  useEffect(() => {
+    const initializeContract = async () => {
+      try {
+        setContractLoading(true);
+        const address = contractService.getWalletAddress();
+        setPlayerAddress(address);
+        
+        // For demo purposes, use a different address for enemy
+        setEnemyAddress('0x70997970C51812dc3A010C7d01b50e0d17dc79C8');
+        
+        // Register player ship
+        const contractPos = contractService.positionToContract(playerShipPosition);
+        await contractService.registerShip(contractPos.x, contractPos.z, shipRadius);
+        setIsShipRegistered(true);
+        
+        console.log('Contract initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize contract:', error);
+      } finally {
+        setContractLoading(false);
+      }
+    };
 
-    console.log("[v0] Firing cannon with angles:", {
-      azimuthal: azimuthalAngle[0],
-      vertical: verticalAngle[0],
-      velocity: cannonVelocity[0],
-    })
-    setIsFiring(true)
-  }
+    initializeContract();
+  }, [playerShipPosition, shipRadius]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCannonballs(prev => prev.filter(ball => {
+        const currentTime = Date.now();
+        const elapsedTime = (currentTime - ball.startTime) / 1000;
+        return elapsedTime < 5; // Remove cannonballs after 5 seconds
+      }));
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleFireCannon = async () => {
+    if (isFiring || !isShipRegistered) return;
+    
+    setIsFiring(true);
+    setContractLoading(true);
+    
+    try {
+      // Calculate initial velocity based on angles and speed
+      const azimuthRad = (azimuthalAngle[0] * Math.PI) / 180;
+      const verticalRad = (verticalAngle[0] * Math.PI) / 180;
+      const speed = cannonVelocity[0] / 10; // Scale down for better visualization
+      
+      const velocity = new THREE.Vector3(
+        speed * Math.cos(verticalRad) * Math.cos(azimuthRad),
+        speed * Math.sin(verticalRad),
+        speed * Math.cos(verticalRad) * Math.sin(azimuthRad)
+      );
+      
+      // Fire cannonball through contract
+      const contractResult = await contractService.fireCannonball({
+        target: enemyAddress,
+        velocity: cannonVelocity[0],
+        azimuthDeg: azimuthalAngle[0],
+        verticalDeg: verticalAngle[0]
+      });
+      
+      const newCannonball = {
+        id: nextCannonballId,
+        position: new THREE.Vector3(...playerShipPosition),
+        velocity: velocity,
+        startTime: Date.now(),
+        contractResult: contractResult
+      };
+      
+      setCannonballs(prev => [...prev, newCannonball]);
+      setNextCannonballId(prev => prev + 1);
+      
+      // Show battle result after animation
+      setTimeout(() => {
+        const damage = contractResult.hit ? Math.floor(Math.random() * 30) + 10 : 0;
+        
+        if (contractResult.hit) {
+          setEnemyShipHealth(prev => Math.max(0, prev - damage));
+        }
+        
+        setAttackResult({ 
+          hit: contractResult.hit, 
+          damage, 
+          distance: contractResult.distanceFromTarget 
+        });
+        setShowAttackResult(true);
+        setIsFiring(false);
+        
+        // Check for victory
+        if (contractResult.hit && enemyShipHealth - damage <= 0) {
+          setTimeout(() => onVictory(), 2000);
+        }
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error firing cannonball:', error);
+      setIsFiring(false);
+    } finally {
+      setContractLoading(false);
+    }
+  };
 
   const handleCannonballHit = () => {
     console.log("[v0] Cannonball hit target!")
     setIsFiring(false)
-    setShowExplosion(true)
-    setEnemyHit(true)
+    setShowAttackResult(true)
+    setEnemyShipHealth(enemyShipHealth - 20)
 
     setTimeout(() => {
-      setShowExplosion(false)
-      setShowVictory(true)
+      setShowAttackResult(false)
+      if (enemyShipHealth <= 0) {
+        onVictory()
+      }
     }, 2000)
   }
 
@@ -349,12 +501,12 @@ export default function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenPr
     onVictory()
   }
 
-  if (showVictory) {
+  if (showAttackResult) {
     return (
       <div className="fixed inset-0 w-full h-full bg-gradient-to-b from-yellow-400 via-orange-500 to-red-600 flex items-center justify-center">
         <div className="text-center space-y-8 animate-pulse">
-          <h1 className="text-8xl font-bold text-white drop-shadow-2xl animate-bounce">🎉 VICTORY! 🎉</h1>
-          <p className="text-3xl text-white font-semibold drop-shadow-lg">You sunk the enemy ship with your cannon!</p>
+          <h1 className="text-8xl font-bold text-white drop-shadow-2xl animate-bounce">🎉 ATTACK RESULT! 🎉</h1>
+          <p className="text-3xl text-white font-semibold drop-shadow-lg">You hit the enemy ship with your cannon!</p>
           <div className="space-y-4">
             <p className="text-xl text-white/90">
               Final Shot: {azimuthalAngle[0]}° azimuth, {verticalAngle[0]}° elevation
@@ -395,17 +547,17 @@ export default function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenPr
 
         <Ocean />
 
-        <Ship position={[-8, 0, 0]} color="#3B82F6" isPlayer={true} />
-        <Ship position={[8, 0, 0]} color="#EF4444" isHit={enemyHit} />
+        <Ship position={playerShipPosition} color="#3B82F6" isPlayer={true} />
+        <Ship position={enemyShipPosition} color="#EF4444" isHit={enemyShipHealth <= 0} />
 
         <Cannonball
-          startPosition={[-8, 2, 0]}
-          targetPosition={[8, 2, 0]}
-          onHit={handleCannonballHit}
+          startPosition={playerShipPosition}
+          targetPosition={enemyShipPosition}
+          onHit={() => {}}
           isActive={isFiring}
         />
 
-        <Explosion position={[8, 2, 0]} isActive={showExplosion} />
+        <Explosion position={[8, 2, 0]} isActive={showAttackResult} />
 
         <OrbitControls
           enableZoom={true}
@@ -465,23 +617,30 @@ export default function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenPr
 
             <Button
               onClick={handleFireCannon}
-              disabled={isFiring}
-              className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white font-bold py-4 text-xl shadow-lg transform hover:scale-105 transition-all"
+              disabled={isFiring || !isShipRegistered || contractLoading}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {isFiring ? "🔥 FIRING..." : "🔥 FIRE CANNON!"}
+              <Zap className="w-5 h-5 mr-2" />
+              {contractLoading ? 'Processing...' : isFiring ? 'Firing...' : !isShipRegistered ? 'Registering Ship...' : 'Fire Cannon!'}
             </Button>
           </div>
         </Card>
 
         <Card className="p-4 bg-black/70 backdrop-blur-sm border-white/20">
-          <div className="text-white space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Velocity:</span>
-              <span className="text-blue-400 font-bold">{playerVelocity.toFixed(1)} knots</span>
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-lg">
+              <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">Your Ship</div>
+              <div className="text-2xl font-bold text-blue-800 dark:text-blue-200">{playerShipHealth}%</div>
+              <div className="text-xs text-blue-500 dark:text-blue-300 mt-1">
+                {isShipRegistered ? '✓ Registered' : 'Registering...'}
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Distance:</span>
-              <span className="text-green-400 font-bold">{distance.toFixed(1)} nautical miles</span>
+            <div className="bg-red-100 dark:bg-red-900 p-3 rounded-lg">
+              <div className="text-sm text-red-600 dark:text-red-400 font-medium">Enemy Ship</div>
+              <div className="text-2xl font-bold text-red-800 dark:text-red-200">{enemyShipHealth}%</div>
+              <div className="text-xs text-red-500 dark:text-red-300 mt-1">
+                Contract Target
+              </div>
             </div>
           </div>
         </Card>
@@ -507,6 +666,14 @@ export default function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenPr
           Back to Menu
         </Button>
       </div>
+
+      <AttackResultModal
+        isOpen={showAttackResult}
+        onClose={() => setShowAttackResult(false)}
+        result={attackResult}
+      />
     </div>
   )
 }
+
+export default PVPBattleScreen;
