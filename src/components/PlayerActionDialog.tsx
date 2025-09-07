@@ -138,7 +138,9 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-400">Owner of the Island:</span>
-                <span className="text-white font-medium">{island.owner}</span>
+                <span className="font-mono text-xs text-gray-300">
+                  {island.owner ? `${island.owner.slice(0, 6)}...${island.owner.slice(-4)}` : 'N/A'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Address of the Island:</span>
