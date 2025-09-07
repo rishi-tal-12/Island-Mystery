@@ -475,7 +475,7 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
   // Ship positions - memoized to prevent useEffect dependency issues
   const playerShipPosition = useMemo<[number, number, number]>(() => [-15, 0, 0], []);
   const enemyShipPosition = useMemo<[number, number, number]>(() => [15, 0, 0], []);
-  const shipRadius = useMemo(() => 2, []); // Ship radius for hit detection
+  const shipRadius = useMemo(() => 3, []); // Ship radius for hit detection - increased for more forgiving collision
 
   // Initialize contract integration
   useEffect(() => {
