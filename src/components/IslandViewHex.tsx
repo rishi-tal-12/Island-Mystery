@@ -190,30 +190,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
   const [txMessage, setTxMessage] = useState<string | null>(null)
 
   // TradeOffers: included a senderAddress field so we can pass it to mainContract.tradeExecute
-  const [tradeOffers, setTradeOffers] = useState<any[]>([
-    {
-      id: "1",
-      fromPlayer: "Captain Hook",
-      fromIsland: "Pirate Cove",
-      offerType: "gold" as const,
-      offerAmount: 50,
-      requestType: "wheat" as const,
-      requestAmount: 30,
-      senderAddress: "0x0000000000000000000000000000000000000000", // placeholder if mainContract not available
-      timestamp: new Date().toISOString(),
-    },
-    {
-      id: "2",
-      fromPlayer: "Admiral Storm",
-      fromIsland: "Storm Island",
-      offerType: "wheat" as const,
-      offerAmount: 40,
-      requestType: "gold" as const,
-      requestAmount: 25,
-      senderAddress: "0x0000000000000000000000000000000000000000",
-      timestamp: new Date(Date.now() - 86400000).toISOString(),
-    },
-  ])
+  const [tradeOffers, setTradeOffers] = useState<any[]>([])
 
   /// leave attack history for now, will implement later
   const [attackHistory] = useState([

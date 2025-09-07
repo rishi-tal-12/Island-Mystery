@@ -49,11 +49,11 @@ contract Island {
         stats.attack = 0;
         stats.defense = 0;
         // Initial Resources
-        stats.wheat = 10;
-        stats.gold = 5;
-        totalHexes = 4;
+        stats.wheat = 100;
+        stats.gold = 100;
+        totalHexes = 5;
         
-        for (uint i = 0; i < 4; i++) {
+        for (uint i = 0; i < 5; i++) {
             unlockedHexes[i] = true;
         }
     }
