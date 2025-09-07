@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-
 interface IIsland {
     function getStats() external view returns (uint256 attack, uint256 defense, uint256 wheat, uint256 gold);
     function updateStats(uint256 attack, uint256 defense, uint256 wheat, uint256 gold) external;
@@ -66,7 +65,6 @@ contract MainLogic {
     // Register a new island
     function registerNewIsland(address islandAddress) external {
         require(islandAddress != address(0), "Invalid island address");
-
 
         playerToIsland[msg.sender] = islandAddress;
         registeredIslands.push(islandAddress);
@@ -158,7 +156,6 @@ contract MainLogic {
         emit TradeExecuted(sender, msg.sender, request.senderIsland, request.receiverIsland);
     }
 
-
     function attack(address defenderIsland) external validIsland(defenderIsland) {
         address attackerIsland = playerToIsland[msg.sender];
         require(attackerIsland != address(0), "Attacker doesn't have an island");
@@ -174,33 +171,30 @@ contract MainLogic {
         if (attackerAttackStat > defenderDefenseStat) {
             attackerWon = true;
 
+            IIsland(attackerIsland).updateStats(
+                attackerAttackStat - defenderDefenseStat,
+                attackerDefense,
+                attackerWheat + defenderWheat / 2,
+                attackerGold + defenderGold / 2
+            );
 
-        IIsland(attackerIsland).updateStats(
-            attackerAttackStat - defenderDefenseStat, 
-            attackerDefense, 
-            attackerWheat + defenderWheat / 2, 
-            attackerGold + defenderGold / 2
-        );
+            IIsland(defenderIsland).updateStats(
+                defenderAttack, 0, defenderWheat - defenderWheat / 2, defenderGold - defenderGold / 2
+            );
 
-
-        IIsland(defenderIsland).updateStats(
-            defenderAttack, 
-            0, 
-            defenderWheat - defenderWheat / 2, 
-            defenderGold - defenderGold / 2
-        );
-
-        emit AttackExecuted(msg.sender, IIsland(defenderIsland).owner(), attackerIsland, defenderIsland, attackerWon);
-
+            emit AttackExecuted(
+                msg.sender, IIsland(defenderIsland).owner(), attackerIsland, defenderIsland, attackerWon
+            );
         } else {
+            IIsland(attackerIsland).updateStats(0, attackerDefense, attackerWheat, attackerGold);
+            IIsland(defenderIsland).updateStats(
+                defenderAttack, defenderDefenseStat - attackerAttackStat, defenderWheat, defenderGold
+            );
 
-        IIsland(attackerIsland).updateStats(0, attackerDefense, attackerWheat, attackerGold);
-        IIsland(defenderIsland).updateStats(defenderAttack, defenderDefenseStat - attackerAttackStat, defenderWheat, defenderGold);
-
-        emit AttackExecuted(msg.sender, IIsland(defenderIsland).owner(), attackerIsland, defenderIsland, attackerWon);
+            emit AttackExecuted(
+                msg.sender, IIsland(defenderIsland).owner(), attackerIsland, defenderIsland, attackerWon
+            );
         }
-
-
     }
 
     function getPlayerIsland(address player) external view returns (address) {
@@ -218,5 +212,9 @@ contract MainLogic {
 
     function getTradeRequest(address receiver, address sender) external view returns (TradeRequest memory) {
         return tradeRequests[receiver][sender];
+    }
+
+    function getAllRegisteredIslands() external view returns (address[] memory) {
+        return registeredIslands;
     }
 }
