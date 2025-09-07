@@ -682,9 +682,9 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
                         ? hex.building
                           ? "opacity-100"
                           : selectedBuildingType
-                          ? "bg-green-500/40 border-2 border-green-400"
-                          : "bg-blue-500/30 border-2 border-blue-400"
-                        : "bg-gray-500/20 border-2 border-gray-400 cursor-not-allowed"
+                          ? "bg-green-500/40"
+                          : "bg-blue-500/30"
+                        : "bg-gray-500/20 cursor-not-allowed"
                     }
                     ${selectedHex === hex.id ? "ring-4 ring-yellow-400" : ""}
                   `}
