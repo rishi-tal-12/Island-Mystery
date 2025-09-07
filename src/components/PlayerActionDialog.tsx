@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Sword, Handshake, User } from "lucide-react"
+import { Sword, Handshake, User, X } from "lucide-react"
 
 interface Island {
   id: string
@@ -30,29 +30,31 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
+      <DialogContent className="sm:max-w-md bg-sky-200 border-sky-300 rounded-2xl p-6">
+        <DialogHeader className="relative">
+          <DialogTitle className="flex items-center gap-2 text-gray-800 text-lg font-semibold">
+            <User className="w-5 h-5 text-gray-600" />
             {island.name}
           </DialogTitle>
+          <button
+            onClick={onClose}
+            className="absolute -top-2 -right-2 w-8 h-8 bg-transparent hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Island Info */}
-          <Card className="p-4">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Owner:</span>
-                <span className="text-sm text-muted-foreground">{island.owner}</span>
-              </div>
+        <div className="space-y-4 mt-4">
+          <Card className="p-4 bg-amber-100 border-amber-200 rounded-xl">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Owner:</span>
+              <span className="text-sm text-gray-600 font-medium">{island.owner}</span>
             </div>
           </Card>
 
-          {/* Action Buttons */}
           <div className="space-y-3">
             <Button
-              className="w-full gap-2 bg-attack hover:bg-attack/80 text-attack-foreground"
+              className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white rounded-xl py-3 font-medium text-base shadow-sm"
               onClick={() => {
                 onAttack(island)
                 onClose()
@@ -64,8 +66,7 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
             </Button>
 
             <Button
-              variant="outline"
-              className="w-full gap-2 bg-trade hover:bg-trade/80 text-trade-foreground border-trade"
+              className="w-full gap-2 bg-green-500 hover:bg-green-600 text-white rounded-xl py-3 font-medium text-base shadow-sm"
               onClick={() => {
                 onTrade(island)
                 onClose()
@@ -76,7 +77,10 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
               Propose Trade
             </Button>
 
-            <Button variant="secondary" className="w-full" onClick={onClose}>
+            <Button
+              className="w-full bg-green-400 hover:bg-green-500 text-white rounded-xl py-3 font-medium text-base shadow-sm"
+              onClick={onClose}
+            >
               Cancel
             </Button>
           </div>

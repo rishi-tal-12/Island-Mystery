@@ -9,6 +9,8 @@ import IslandViewHex from "@/components/IslandViewHex"
 import PlayerActionDialog from "@/components/PlayerActionDialog"
 import AttackResultModal, { type AttackResult } from "@/components/AttackResultModal"
 import TradeProposalModal from "@/components/TradeProposalModal"
+import PVPWaitingScreen from "../components/PVPWaitingScreen"
+import PVPBattleScreen from "../components/PVPBattleScreen"
 
 interface Island {
   id: string
@@ -19,7 +21,7 @@ interface Island {
   power: number
 }
 
-type GameState = "landing" | "howToPlay" | "map" | "island"
+type GameState = "landing" | "howToPlay" | "map" | "island" | "pvpWaiting" | "pvpBattle"
 
 const Index = () => {
   const [gameState, setGameState] = useState<GameState>("landing")
@@ -51,6 +53,14 @@ const Index = () => {
 
   const handleHowToPlay = () => {
     setGameState("howToPlay")
+  }
+
+  const handlePVPMode = () => {
+    setGameState("pvpWaiting")
+  }
+
+  const handlePlayerConnected = () => {
+    setGameState("pvpBattle")
   }
 
   const handleBackToLanding = () => {
@@ -88,13 +98,21 @@ const Index = () => {
 
   return (
     <>
-      {gameState === "landing" && <LandingScreen onEnterGame={handleEnterGame} onHowToPlay={handleHowToPlay} />}
+      {gameState === "landing" && (
+        <LandingScreen onEnterGame={handleEnterGame} onHowToPlay={handleHowToPlay} onPVPMode={handlePVPMode} />
+      )}
 
       {gameState === "howToPlay" && <HowToPlay onBack={handleBackToLanding} />}
 
       {gameState === "map" && <GameMap onSelectIsland={handleSelectIsland} />}
 
       {gameState === "island" && selectedIsland && <IslandViewHex island={selectedIsland} onBack={handleBackToMap} />}
+
+      {gameState === "pvpWaiting" && (
+        <PVPWaitingScreen onPlayerConnected={handlePlayerConnected} onBack={handleBackToLanding} />
+      )}
+
+      {gameState === "pvpBattle" && <PVPBattleScreen onBack={handleBackToLanding} />}
 
       <PlayerActionDialog
         island={selectedIsland}
