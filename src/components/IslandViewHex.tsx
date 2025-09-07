@@ -698,7 +698,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
                   }}
                   onClick={() => !txInProgress && handleHexClick(hex)}
                 >
-                  <div className="w-full h-full flex items-center justify-center bg-white/10 backdrop-blur-sm">
+                  <div className="w-full h-full flex items-center justify-center bg-green-200/35 backdrop-blur-sm">
                     <div className="absolute top-2 left-2 text-sm text-white bg-black/50 rounded px-1">
                       {index + 1}
                     </div>
