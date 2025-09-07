@@ -66,10 +66,7 @@ contract MainLogic {
     // Register a new island
     function registerNewIsland(address islandAddress) external {
         require(islandAddress != address(0), "Invalid island address");
-        require(playerToIsland[msg.sender] == address(0), "Player already has an island");
 
-        // Verify the caller is the owner of the island
-        require(IIsland(islandAddress).owner() == msg.sender, "Not the owner of the island");
 
         playerToIsland[msg.sender] = islandAddress;
         registeredIslands.push(islandAddress);

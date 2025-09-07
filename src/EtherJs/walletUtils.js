@@ -250,6 +250,28 @@ async function deployContract(signer, provider) {
       );
     }
 
+    // ---- Register the island on MainLogic ----
+    console.log("Registering new island on MainLogic...");
+    const mainContract = new ethers.Contract(
+      MAIN_LOGIC_CONTRACT_ADDRESS,
+      MainLogicABI,
+      signer
+    );
+
+    let registerTx;
+    try {
+      registerTx = await mainContract.registerNewIsland(contractAddress);
+      console.log("Register tx sent:", registerTx.hash);
+
+      const registerReceipt = await registerTx.wait();
+      console.log(
+        `Island registered successfully in block ${registerReceipt.blockNumber}`
+      );
+    } catch (err) {
+      console.error("Failed to register island on MainLogic:", err);
+      throw new Error("Island deployment succeeded but registration failed.");
+    }
+
     // Store contract, signer, and addresses in Zustand store for later use
     // Store contract, signer, and addresses in Zustand store for later use
     try {
@@ -276,7 +298,7 @@ async function deployContract(signer, provider) {
 
       console.log("Main contract instance:", mainContractInstance);
       console.log("contract instance:", deployedContract);
-      
+
       setMainContract(mainContractInstance);
 
       console.log("Contract, mainContract, and signer stored in Zustand store");

@@ -1,9 +1,8 @@
 
 
-export const MAIN_LOGIC_CONTRACT_ADDRESS = "0x78f0d3fC183be2983b50fcc919bA8b13Cc2CF6B8"; // Replace with your deployed contract address
-export const ISLAND_LOGIC_CONTRACT_ADDRESS = "0xB76b0Ba3679C23E467c0cC1cC3D2FCbfaBC3f0A7"; // Replace with your deployed contract address
+export const MAIN_LOGIC_CONTRACT_ADDRESS = "0x0012211F5FafCb0eE48b94d16a5288bA74FBff5c"; // Replace with your deployed contract address
 
-export const OwnerAddress = "0xB76b0Ba3679C23E467c0cC1cC3D2FCbfaBC3f0A7";
+export const OwnerAddress = "0x0000000000000000000000000000000000000000"; 
 
 export const ARBITRUM_CHAIN_ID = "0x66eee";
 export const ARBITRUM_RPC_URL = "https://sepolia-rollup.arbitrum.io/rpc"; // Replace with your RPC URL

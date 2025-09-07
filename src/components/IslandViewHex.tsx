@@ -1,5 +1,5 @@
 "use client";
-
+import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import AttackHistoryModal from "./AttackHistoryModal";
 import BuildingSelectionModal from "./BuildingSelectionModal";
 import InstructionsModal from "./InstructionsModal";
 import Spline from "@splinetool/react-spline";
+import { IslandLogicABI } from "../EtherJs/constants.js";
 
 import { useStoreContract } from "../EtherJs/useStoreContract.js";
 
@@ -514,6 +515,84 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
     setSelectedBuildingType(buildingType);
   };
 
+  const fetchTradeOffers = async () => {
+    if (!mainContract || !signer || !contract) return;
+
+    try {
+      setTxInProgress(true);
+      setTxMessage("Fetching latest requests...");
+
+      // 1. Get current player (owner of this island)
+      const receiverPlayer = await contract.owner();
+      console.log("Current player address:", receiverPlayer);
+
+      // 2. Get all registered islands
+      const countBN = await mainContract.getRegisteredIslandsCount();
+      const count = Number(countBN.toString());
+      const offers: any[] = [];
+
+      for (let i = 0; i < count; i++) {
+        const senderIsland = await mainContract.getRegisteredIsland(i);
+        const senderPlayer = await new ethers.Contract(
+          senderIsland,
+          IslandLogicABI,
+          signer
+        ).owner();
+
+        // Skip if it's your own island
+        if (senderPlayer.toLowerCase() === receiverPlayer.toLowerCase()) {
+          continue;
+        }
+
+        // 3. Fetch trade request [receiverPlayer][senderPlayer]
+        const trade = await mainContract.tradeRequests(
+          receiverPlayer,
+          senderPlayer
+        );
+
+        if (trade.active) {
+          const formattedTrade = {
+            id: `${i}-${trade.senderIsland}`,
+            senderAddress: trade.senderIsland,
+            offerText: [
+              trade.wheatOffered > 0
+                ? `🌾 ${Number(trade.wheatOffered)} Wheat`
+                : null,
+              trade.goldOffered > 0
+                ? `💰 ${Number(trade.goldOffered)} Gold`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" + "),
+            requestText: [
+              trade.wheatRequested > 0
+                ? `🌾 ${Number(trade.wheatRequested)} Wheat`
+                : null,
+              trade.goldRequested > 0
+                ? `💰 ${Number(trade.goldRequested)} Gold`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" + "),
+          };
+
+          offers.push(formattedTrade);
+        }
+      }
+
+      // 4. Update UI
+      setTradeOffers(offers);
+
+      // Log in console
+      console.log("Latest trade requests:", offers);
+    } catch (err) {
+      console.error("fetchTradeOffers error:", err);
+    } finally {
+      setTxInProgress(false);
+      setTxMessage(null);
+    }
+  };
+
   return (
     <div className="relative w-full h-screen overflow-hidden">
       <div className="absolute inset-0 overflow-hidden z-0">
@@ -591,12 +670,15 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
 
         <div className="flex gap-3 mb-6">
           <Button
-            onClick={() => setShowTradeInbox(true)}
+            onClick={async () => {
+              await fetchTradeOffers(); // fetch latest requests
+              setShowTradeInbox(true); // then open the modal
+            }}
             className="bg-purple-600/80 hover:bg-purple-600 text-white border-purple-500/50 gap-2"
             disabled={txInProgress}
           >
             <Mail className="w-4 h-4" />
-            Trade Inbox 
+            Trade Inbox
           </Button>
 
           <Button
