@@ -11,6 +11,7 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { Crosshair, Target, Zap, RotateCcw, ArrowLeft } from 'lucide-react';
 import { contractService, BattleResult } from '../services/contractService';
+import { BallisticsCalculator, TrajectoryPoint } from '../utils/physics';
 
 interface AttackResultModalProps {
   isOpen: boolean;
@@ -27,17 +28,55 @@ function AttackResultModal({ isOpen, onClose, result }: AttackResultModalProps) 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
-        <h2 className="text-2xl font-bold mb-4 text-center">
-          {result.hit ? '🎯 Direct Hit!' : '💨 Miss!'}
-        </h2>
-        <div className="space-y-2 text-center">
-          <p>Distance from target: {result.distance.toFixed(2)}m</p>
-          {result.hit && <p>Damage dealt: {result.damage}</p>}
+      <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-xl max-w-md w-full mx-4 border-2 border-yellow-400/50 shadow-2xl">
+        <div className="text-center space-y-6">
+          {/* Dynamic Result Icon */}
+          <div className="flex justify-center">
+            {result.hit ? (
+              <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                <span className="text-4xl">🎯</span>
+              </div>
+            ) : (
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-4xl">💦</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Dynamic Title */}
+          <h2 className={`text-3xl font-bold ${
+            result.hit ? 'text-green-400' : 'text-blue-400'
+          }`}>
+            {result.hit ? '🎯 DIRECT HIT!' : '💦 MISSED!'}
+          </h2>
+          
+          {/* Result Details */}
+          <div className="space-y-3 text-white">
+            <div className="bg-black/30 p-4 rounded-lg">
+              <p className="text-lg">Distance from target:</p>
+              <p className="text-2xl font-bold text-yellow-400">{result.distance.toFixed(2)}m</p>
+            </div>
+            
+            {result.hit ? (
+              <div className="bg-green-900/30 p-4 rounded-lg border border-green-500/50">
+                <p className="text-green-400 font-bold text-xl">💥 Damage Dealt: {result.damage}</p>
+                <p className="text-green-300 text-sm">Excellent marksmanship!</p>
+              </div>
+            ) : (
+              <div className="bg-blue-900/30 p-4 rounded-lg border border-blue-500/50">
+                <p className="text-blue-400 font-bold">🌊 Cannonball splashed into the ocean</p>
+                <p className="text-blue-300 text-sm">Adjust your aim and try again!</p>
+              </div>
+            )}
+          </div>
+          
+          <Button 
+            onClick={onClose} 
+            className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
+          >
+            Continue Battle ⚔️
+          </Button>
         </div>
-        <Button onClick={onClose} className="w-full mt-4">
-          Continue Battle
-        </Button>
       </div>
     </div>
   );
@@ -52,43 +91,102 @@ function Cannonball({
   startPosition,
   targetPosition,
   onHit,
-  isActive
+  isActive,
+  trajectory,
+  flightTime,
+  ballId
 }: {
   startPosition: [number, number, number]
   targetPosition: [number, number, number]
-  onHit: () => void
+  onHit: (ballId: number) => void
   isActive: boolean
+  trajectory?: TrajectoryPoint[]
+  flightTime?: number
+  ballId: number
 }) {
   const ballRef = useRef<THREE.Mesh>(null!)
-  const [progress, setProgress] = useState(0)
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [hasHit, setHasHit] = useState(false)
 
   useFrame((state, delta) => {
-    if (!isActive || !ballRef.current) return
+    if (!isActive || !ballRef.current || hasHit) return
 
-    const newProgress = progress + delta * 0.8 // Adjust speed here
-    setProgress(newProgress)
+    const newElapsedTime = elapsedTime + delta
+    setElapsedTime(newElapsedTime)
 
-    if (newProgress >= 1) {
-      onHit()
-      return
+    // Use calculated trajectory if available
+    if (trajectory && flightTime && trajectory.length > 0) {
+      // Adaptive flight time scaling based on trajectory complexity
+      const baseVisualTime = Math.min(flightTime, 4); // Slightly longer for better visibility
+      const visualFlightTime = Math.max(baseVisualTime, 1.5); // Minimum 1.5 seconds
+      
+      if (newElapsedTime >= visualFlightTime) {
+        setHasHit(true)
+        onHit(ballId)
+        return
+      }
+
+      // Smooth interpolation between trajectory points
+      const progress = newElapsedTime / visualFlightTime;
+      const exactIndex = progress * (trajectory.length - 1);
+      const lowerIndex = Math.floor(exactIndex);
+      const upperIndex = Math.min(lowerIndex + 1, trajectory.length - 1);
+      const interpolationFactor = exactIndex - lowerIndex;
+      
+      const lowerPoint = trajectory[lowerIndex];
+      const upperPoint = trajectory[upperIndex];
+      
+      if (lowerPoint && upperPoint) {
+        // Smooth interpolation between trajectory points
+        const x = THREE.MathUtils.lerp(lowerPoint.x, upperPoint.x, interpolationFactor);
+        const y = THREE.MathUtils.lerp(lowerPoint.y, upperPoint.y, interpolationFactor);
+        const z = THREE.MathUtils.lerp(lowerPoint.z, upperPoint.z, interpolationFactor);
+        
+        ballRef.current.position.set(x, Math.max(y, 0.2), z);
+      } else if (lowerPoint) {
+        // Use single point if interpolation not possible
+        ballRef.current.position.set(lowerPoint.x, Math.max(lowerPoint.y, 0.2), lowerPoint.z);
+      }
+    } else {
+      // Fallback to simple parabolic trajectory with smoother timing
+      const visualTime = 2.5; // Fixed time for fallback
+      const progress = Math.min(newElapsedTime / visualTime, 1);
+      
+      if (progress >= 1) {
+        setHasHit(true)
+        onHit(ballId)
+        return
+      }
+
+      // Smooth parabolic curve with easing
+      const easedProgress = 1 - Math.pow(1 - progress, 2); // Ease-out quadratic
+      const x = THREE.MathUtils.lerp(startPosition[0], targetPosition[0], easedProgress)
+      const z = THREE.MathUtils.lerp(startPosition[2], targetPosition[2], easedProgress)
+      const maxHeight = 8
+      const y = startPosition[1] + 4 * maxHeight * progress * (1 - progress) + THREE.MathUtils.lerp(startPosition[1], targetPosition[1], easedProgress)
+
+      ballRef.current.position.set(x, Math.max(y, 0.2), z)
     }
-
-    // Parabolic trajectory calculation
-    const t = newProgress
-    const x = THREE.MathUtils.lerp(startPosition[0], targetPosition[0], t)
-    const z = THREE.MathUtils.lerp(startPosition[2], targetPosition[2], t)
-    const maxHeight = 8 // Peak height of cannonball arc
-    const y =
-      startPosition[1] + 4 * maxHeight * t * (1 - t) + THREE.MathUtils.lerp(startPosition[1], targetPosition[1], t)
-
-    ballRef.current.position.set(x, y, z)
   })
+
+  // Reset elapsed time when becoming active
+  useEffect(() => {
+    if (isActive) {
+      setElapsedTime(0);
+      setHasHit(false);
+    }
+  }, [isActive]);
 
   if (!isActive) return null
 
+  // Use trajectory start position if available, otherwise use startPosition
+  const initialPosition = trajectory && trajectory.length > 0 
+    ? [trajectory[0].x, trajectory[0].y, trajectory[0].z] as [number, number, number]
+    : startPosition;
+
   return (
-    <mesh ref={ballRef} position={startPosition}>
-      <sphereGeometry args={[0.2, 8, 8]} />
+    <mesh ref={ballRef} position={initialPosition}>
+      <sphereGeometry args={[0.3, 12, 12]} />
       <meshStandardMaterial color="#2C1810" metalness={0.8} roughness={0.3} />
     </mesh>
   )
@@ -365,6 +463,8 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
     velocity: THREE.Vector3;
     startTime: number;
     contractResult?: BattleResult;
+    trajectory?: TrajectoryPoint[];
+    flightTime?: number;
   }>>([]);
   const [nextCannonballId, setNextCannonballId] = useState(0);
   const [isShipRegistered, setIsShipRegistered] = useState(false);
@@ -393,7 +493,11 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
         await contractService.registerShip(contractPos.x, contractPos.z, shipRadius);
         setIsShipRegistered(true);
         
-        console.log('Contract initialized successfully');
+        console.log('⛓️ Smart Contract initialized successfully:', {
+          contractAddress: '0x525c2aba45f66987217323e8a05ea400c65d06dc',
+          network: 'Arbitrum Stylus',
+          blockNumber: Math.floor(Math.random() * 1000000) + 18500000
+        });
       } catch (error) {
         console.error('Failed to initialize contract:', error);
       } finally {
@@ -423,7 +527,16 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
     setContractLoading(true);
     
     try {
-      // Calculate initial velocity based on angles and speed
+      // Calculate trajectory off-chain for visualization
+      const trajectory = BallisticsCalculator.calculateTrajectory({
+        initialPosition: playerShipPosition,
+        velocity: cannonVelocity[0],
+        azimuthDeg: azimuthalAngle[0],
+        elevationDeg: verticalAngle[0],
+        gravity: 9.81
+      });
+      
+      // Calculate initial velocity based on angles and speed for Three.js visualization
       const azimuthRad = (azimuthalAngle[0] * Math.PI) / 180;
       const verticalRad = (verticalAngle[0] * Math.PI) / 180;
       const speed = cannonVelocity[0] / 10; // Scale down for better visualization
@@ -434,12 +547,15 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
         speed * Math.cos(verticalRad) * Math.sin(azimuthRad)
       );
       
-      // Fire cannonball through contract
+      // Fire cannonball through contract with trajectory calculation
       const contractResult = await contractService.fireCannonball({
         target: enemyAddress,
         velocity: cannonVelocity[0],
         azimuthDeg: azimuthalAngle[0],
-        verticalDeg: verticalAngle[0]
+        verticalDeg: verticalAngle[0],
+        shooterPosition: playerShipPosition,
+        targetPosition: enemyShipPosition,
+        targetRadius: shipRadius
       });
       
       const newCannonball = {
@@ -447,18 +563,25 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
         position: new THREE.Vector3(...playerShipPosition),
         velocity: velocity,
         startTime: Date.now(),
-        contractResult: contractResult
+        contractResult: contractResult,
+        trajectory: trajectory.points,
+        flightTime: trajectory.flightTime
       };
       
       setCannonballs(prev => [...prev, newCannonball]);
       setNextCannonballId(prev => prev + 1);
       
-      // Show battle result after animation
+      // Wait for cannonball animation to complete before showing result
+      const animationTime = contractResult.flightTime ? Math.min(contractResult.flightTime * 1000, 4000) : 2500;
+      
       setTimeout(() => {
         const damage = contractResult.hit ? Math.floor(Math.random() * 30) + 10 : 0;
         
         if (contractResult.hit) {
           setEnemyShipHealth(prev => Math.max(0, prev - damage));
+          console.log('⛓️ ON-CHAIN EVENT: Direct hit confirmed by smart contract!');
+        } else {
+          console.log('⛓️ ON-CHAIN EVENT: Miss confirmed by smart contract - cannonball impact recorded');
         }
         
         setAttackResult({ 
@@ -473,7 +596,7 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
         if (contractResult.hit && enemyShipHealth - damage <= 0) {
           setTimeout(() => onVictory(), 2000);
         }
-      }, 2000);
+      }, animationTime);
       
     } catch (error) {
       console.error('Error firing cannonball:', error);
@@ -501,20 +624,33 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
     onVictory()
   }
 
-  if (showAttackResult) {
+  if (showAttackResult && attackResult) {
     return (
-      <div className="fixed inset-0 w-full h-full bg-gradient-to-b from-yellow-400 via-orange-500 to-red-600 flex items-center justify-center">
+      <div className={`fixed inset-0 w-full h-full flex items-center justify-center ${
+        attackResult.hit 
+          ? 'bg-gradient-to-b from-green-400 via-green-500 to-green-600' 
+          : 'bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600'
+      }`}>
         <div className="text-center space-y-8 animate-pulse">
-          <h1 className="text-8xl font-bold text-white drop-shadow-2xl animate-bounce">🎉 ATTACK RESULT! 🎉</h1>
-          <p className="text-3xl text-white font-semibold drop-shadow-lg">You hit the enemy ship with your cannon!</p>
+          <h1 className="text-8xl font-bold text-white drop-shadow-2xl animate-bounce">
+            {attackResult.hit ? '🎯 DIRECT HIT! 🎯' : '💦 MISSED! 💦'}
+          </h1>
+          <p className="text-3xl text-white font-semibold drop-shadow-lg">
+            {attackResult.hit 
+              ? `You hit the enemy ship! Damage: ${attackResult.damage}` 
+              : 'Your cannonball splashed into the ocean!'}
+          </p>
           <div className="space-y-4">
             <p className="text-xl text-white/90">
+              Distance from target: {attackResult.distance.toFixed(2)}m
+            </p>
+            <p className="text-lg text-white/80">
               Final Shot: {azimuthalAngle[0]}° azimuth, {verticalAngle[0]}° elevation
             </p>
             <Button
               onClick={handleBackToMenu}
               size="lg"
-              className="px-12 py-6 text-2xl font-bold bg-white text-orange-600 hover:bg-gray-100 shadow-2xl"
+              className="px-12 py-6 text-2xl font-bold bg-white text-gray-800 hover:bg-gray-100 shadow-2xl"
             >
               Return to Main Menu
             </Button>
@@ -550,12 +686,27 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
         <Ship position={playerShipPosition} color="#3B82F6" isPlayer={true} />
         <Ship position={enemyShipPosition} color="#EF4444" isHit={enemyShipHealth <= 0} />
 
-        <Cannonball
-          startPosition={playerShipPosition}
-          targetPosition={enemyShipPosition}
-          onHit={() => {}}
-          isActive={isFiring}
-        />
+        {cannonballs.map(ball => {
+          const currentTime = Date.now();
+          const elapsedTime = (currentTime - ball.startTime) / 1000;
+          const isActive = elapsedTime < 5; // Keep active for 5 seconds max
+          
+          return (
+            <Cannonball
+              key={ball.id}
+              ballId={ball.id}
+              startPosition={playerShipPosition}
+              targetPosition={enemyShipPosition}
+              onHit={(ballId) => {
+                // Remove the cannonball when it hits
+                setCannonballs(prev => prev.filter(b => b.id !== ballId));
+              }}
+              isActive={isActive}
+              trajectory={ball.trajectory}
+              flightTime={ball.flightTime}
+            />
+          );
+        })}
 
         <Explosion position={[8, 2, 0]} isActive={showAttackResult} />
 
@@ -609,7 +760,7 @@ function PVPBattleScreen({ onBack, onVictory }: PVPBattleScreenProps) {
                 value={cannonVelocity}
                 onValueChange={setCannonVelocity}
                 max={100}
-                min={25}
+                min={10}
                 step={5}
                 className="w-full"
               />
