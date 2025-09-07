@@ -30,18 +30,17 @@ interface PlayerActionDialogProps {
 }
 
 export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, onTrade }: PlayerActionDialogProps) {
-  const { signer, playerIsland } = useStoreContract() as any;
+  const { signer, contract } = useStoreContract() as any;
   const [userStats, setUserStats] = useState({ wheat: 0, gold: 0 });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchUserStats = async () => {
-      if (!playerIsland || !signer) return;
+      if (!contract || !signer) return;
       
       try {
         setLoading(true);
-        const islandContract = new ethers.Contract(playerIsland, IslandLogicABI, signer);
-        const stats = await islandContract.getStats();
+        const stats = await contract.getStats();
         setUserStats({
           wheat: parseInt(stats[2].toString()),
           gold: parseInt(stats[3].toString())
@@ -53,10 +52,10 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
       }
     };
 
-    if (isOpen && playerIsland) {
+    if (isOpen && contract) {
       fetchUserStats();
     }
-  }, [isOpen, playerIsland, signer]);
+  }, [isOpen, contract, signer]);
 
   if (!island) return null
 
@@ -84,7 +83,7 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       <Wheat className="w-4 h-4 text-yellow-400" />
-                      <span className="text-sm">Wheat</span>
+                      <span className="text-sm text-white">Wheat</span>
                     </div>
                     <span className="font-bold text-yellow-400">
                       {loading ? "..." : userStats.wheat}
@@ -93,7 +92,7 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       <Coins className="w-4 h-4 text-yellow-500" />
-                      <span className="text-sm">Gold</span>
+                      <span className="text-sm text-white">Gold</span>
                     </div>
                     <span className="font-bold text-yellow-500">
                       {loading ? "..." : userStats.gold}
@@ -114,7 +113,7 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       <Wheat className="w-4 h-4 text-yellow-400" />
-                      <span className="text-sm">Wheat</span>
+                      <span className="text-sm text-white">Wheat</span>
                     </div>
                     <span className="font-bold text-yellow-400">
                       {island.wheat ?? "?"}
@@ -123,7 +122,7 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       <Coins className="w-4 h-4 text-yellow-500" />
-                      <span className="text-sm">Gold</span>
+                      <span className="text-sm text-white">Gold</span>
                     </div>
                     <span className="font-bold text-yellow-500">
                       {island.gold ?? "?"}
@@ -138,11 +137,11 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
           <Card className="p-3 bg-gray-800 border-gray-600">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-400">Owner:</span>
+                <span className="text-gray-400">Owner of the Island:</span>
                 <span className="text-white font-medium">{island.owner}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Address:</span>
+                <span className="text-gray-400">Address of the Island:</span>
                 <span className="font-mono text-xs text-gray-300">
                   {island.address ? `${island.address.slice(0, 6)}...${island.address.slice(-4)}` : 'N/A'}
                 </span>
