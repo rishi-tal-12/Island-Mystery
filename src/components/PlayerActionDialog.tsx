@@ -12,6 +12,9 @@ interface Island {
   isPlayer: boolean
   position: { x: number; y: number }
   power: number
+  address: string
+  wheat?: number
+  gold?: number
 }
 
 interface PlayerActionDialogProps {
@@ -46,9 +49,31 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
 
         <div className="space-y-4 mt-4">
           <Card className="p-4 bg-amber-100 border-amber-200 rounded-xl">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">Owner:</span>
-              <span className="text-sm text-gray-600 font-medium">{island.owner}</span>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Owner:</span>
+                <span className="text-sm text-gray-600 font-medium">{island.owner}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Address:</span>
+                <span className="text-xs text-gray-600 font-mono">
+                  {island.address.length > 10 ? `${island.address.slice(0, 6)}...${island.address.slice(-4)}` : island.address}
+                </span>
+              </div>
+              {island.wheat !== undefined && island.gold !== undefined && (
+                <div className="flex justify-between items-center pt-2 border-t border-amber-300">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm">🌾</span>
+                      <span className="text-sm font-medium text-gray-700">{island.wheat}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm">💰</span>
+                      <span className="text-sm font-medium text-gray-700">{island.gold}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
