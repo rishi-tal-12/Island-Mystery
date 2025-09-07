@@ -91,12 +91,12 @@ const BUILDING_TYPES = [
 const generateHexes = (): Hex[] => {
   const hexes: Hex[] = [];
 
-  const hexSize = 80; // Increased from 50 to 80 for better visibility
+  const hexSize = 120; // Increased by 1.5x from 80 to 120 for better visibility
   const horizontalSpacing = hexSize * 0.9; // Tighter spacing for better fit
   const verticalSpacing = hexSize * 0.8; // Adjusted vertical spacing
 
-  const containerWidth = 800; // Fixed container width
-  const containerHeight = 600; // Fixed container height
+  const containerWidth = 1200; // Increased by 1.5x from 800 to 1200
+  const containerHeight = 900; // Increased by 1.5x from 600 to 900
   const centerX = containerWidth * 0.5;
   const centerY = containerHeight * 0.5;
 
@@ -662,7 +662,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
         <div className="absolute inset-0 flex items-center justify-center">
           <div
             className="relative bg-black/20 border-2 border-white/30 rounded-lg"
-            style={{ width: "800px", height: "600px" }}
+            style={{ width: "1200px", height: "900px" }}
           >
             <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-sm z-10">
               Hexes: {hexes.length}/18 | Unlocked:{" "}
@@ -670,7 +670,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
             </div>
 
             {hexes.map((hex, index) => {
-              const hexSize = 60; // Increased hex size
+              const hexSize = 90;
 
               return (
                 <div
@@ -689,8 +689,8 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
                     ${selectedHex === hex.id ? "ring-4 ring-yellow-400" : ""}
                   `}
                   style={{
-                    left: `${hex.position.x - hexSize / 2}px`, // Center the hex on its position
-                    top: `${hex.position.y - hexSize / 2}px`, // Center the hex on its position
+                    left: `${hex.position.x - hexSize / 2}px`,
+                    top: `${hex.position.y - hexSize / 2}px`,
                     width: `${hexSize}px`,
                     height: `${hexSize}px`,
                     clipPath:
@@ -699,7 +699,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
                   onClick={() => !txInProgress && handleHexClick(hex)}
                 >
                   <div className="w-full h-full flex items-center justify-center bg-white/10 backdrop-blur-sm">
-                    <div className="absolute top-1 left-1 text-xs text-white bg-black/50 rounded px-1">
+                    <div className="absolute top-2 left-2 text-sm text-white bg-black/50 rounded px-1">
                       {index + 1}
                     </div>
 
@@ -711,16 +711,16 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
                             "/placeholder.svg"
                           }
                           alt={getBuildingTypeInfo(hex.building.type)?.name}
-                          className="w-8 h-8 rounded mx-auto mb-1" // Increased icon size
+                          className="w-12 h-12 rounded mx-auto mb-2"
                         />
-                        <div className="text-xs font-bold text-white bg-black/50 rou  nded px-1">
+                        <div className="text-sm font-bold text-white bg-black/50 rounded px-1">
                           L{hex.building.level}
                         </div>
                       </div>
                     ) : hex.isUnlocked ? (
-                      <Plus className="w-6 h-6 text-white/80" /> // Increased plus icon size
+                      <Plus className="w-9 h-9 text-white/80" />
                     ) : (
-                      <div className="text-lg">🔒</div> // Increased lock icon size
+                      <div className="text-2xl">🔒</div>
                     )}
                   </div>
                 </div>
