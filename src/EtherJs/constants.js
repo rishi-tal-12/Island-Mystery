@@ -181,6 +181,19 @@ export const MainLogicABI = [
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "getAllRegisteredIslands",
+		"outputs": [
+			{
+				"internalType": "address[]",
+				"name": "",
+				"type": "address[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "address",
