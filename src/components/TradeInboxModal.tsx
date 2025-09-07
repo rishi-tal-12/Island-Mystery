@@ -4,10 +4,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Check, X, ArrowRightLeft } from "lucide-react"
+import { useStoreContract } from "../EtherJs/useStoreContract.js"  // adjust path if needed
 
 interface TradeOffer {
   id: string
-  senderAddress: string
+  senderPlayer: string
   offerText: string
   requestText: string
 }
@@ -29,6 +30,13 @@ export default function TradeInboxModal({
   onRejectTrade,
   disabled,
 }: TradeInboxModalProps) {
+  const { mainContract } = useStoreContract()
+
+  const handleAcceptTrade = (trade: TradeOffer) => {
+    // Only update UI - on-chain interaction is handled by parent component
+    onAcceptTrade(trade.id)
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl bg-slate-900/95 backdrop-blur-md border-2 border-purple-500/50 max-h-[80vh] overflow-y-auto">
@@ -52,7 +60,7 @@ export default function TradeInboxModal({
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="text-white font-semibold truncate max-w-[250px]">
-                        {trade.senderAddress}
+                        {trade.senderPlayer}
                       </h3>
                       <p className="text-slate-400 text-sm">Incoming trade request</p>
                     </div>
@@ -70,7 +78,7 @@ export default function TradeInboxModal({
                   {/* Action Buttons */}
                   <div className="flex gap-3">
                     <Button
-                      onClick={() => onAcceptTrade(trade.id)}
+                      onClick={() => handleAcceptTrade(trade)}
                       disabled={disabled}
                       className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white gap-2"
                     >

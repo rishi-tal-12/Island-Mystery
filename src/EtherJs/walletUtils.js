@@ -201,26 +201,7 @@ async function deployContract(signer, provider) {
     } catch (gasError) {
       console.log("Gas estimation failed, trying with manual gas limit...");
 
-      // If gas estimation fails, try with manual gas limit
-      if (
-        gasError.code === "UNPREDICTABLE_GAS_LIMIT" ||
-        gasError.message?.includes("gas")
-      ) {
-        try {
-          deployedContract = await contractFactory.deploy(...constructorArgs, {
-            gasLimit: 3000000, // 3M gas limit for Arbitrum Sepolia
-            gasPrice: await provider.getFeeData().then((fees) => fees.gasPrice),
-          });
-        } catch (manualGasError) {
-          // Try with higher gas limit
-          console.log("Trying with higher gas limit...");
-          deployedContract = await contractFactory.deploy(...constructorArgs, {
-            gasLimit: 5000000, // 5M gas limit as last resort
-          });
-        }
-      } else {
-        throw gasError;
-      }
+      throw gasError;
     }
 
     const deploymentTx = deployedContract.deploymentTransaction();

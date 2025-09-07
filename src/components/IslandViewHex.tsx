@@ -360,13 +360,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
   }, []);
 
   // When user accepts trade: call mainContract.tradeExecute(sender) on-chain (if available)
-  const handleAcceptTrade = async (
-    tradeId: string,
-    offerType: "gold" | "wheat",
-    offerAmount: number,
-    requestType: "gold" | "wheat",
-    requestAmount: number
-  ) => {
+  const handleAcceptTrade = async (tradeId: string) => {
     const trade = tradeOffers.find((t) => t.id === tradeId);
     if (!trade) return;
 
@@ -382,10 +376,10 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
         setTxMessage("Sending tradeExecute transaction...");
 
         // the solidity function expects address sender (the original offerer)
-        const senderAddress = trade.senderAddress;
+        const senderPlayer = trade.senderPlayer;
         const tx = await mainContract
           .connect(signer)
-          .tradeExecute(senderAddress);
+          .tradeExecute(senderPlayer);
         await tx.wait();
 
         // after confirmation: fetch updated island stats from chain to update UI
@@ -401,15 +395,9 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
         setTxMessage(null);
       }
     } else {
-      // fallback: update local UI and remove trade (previous behavior)
-      setResources((prev) => ({
-        ...prev,
-        [offerType]: prev[offerType] + offerAmount,
-        [requestType]: prev[requestType] - requestAmount,
-      }));
-
+      // No mainContract available - just remove trade from UI
       setTradeOffers((prev) => prev.filter((trade) => trade.id !== tradeId));
-      console.log("Trade accepted (local):", tradeId);
+      console.log("Trade accepted (no contract):", tradeId);
     }
   };
 
@@ -552,8 +540,8 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
 
         if (trade.active) {
           const formattedTrade = {
-            id: `${i}-${trade.senderIsland}`,
-            senderAddress: trade.senderIsland,
+            id: `${i}-${trade.senderPlayer}`,
+            senderPlayer: senderPlayer,
             offerText: [
               trade.wheatOffered > 0
                 ? `🌾 ${Number(trade.wheatOffered)} Wheat`
