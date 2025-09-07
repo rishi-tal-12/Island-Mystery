@@ -1,37 +1,42 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity ^0.8.24;
 
 contract Island {
-
     address public owner;
     address public centralContract;
-    uint public totalHexes;
+    uint256 public totalHexes;
 
-    uint constant MAX_HEXES = 18;
+    uint256 constant MAX_HEXES = 18;
 
     struct Stats {
-        uint attack;
-        uint defense;
-        uint wheat;
-        uint gold;
+        uint256 attack;
+        uint256 defense;
+        uint256 wheat;
+        uint256 gold;
     }
 
     Stats public stats;
 
-    enum BuildingType { None, Farm, Mine, Defense, TroopCamp }
+    enum BuildingType {
+        None,
+        Farm,
+        Mine,
+        Defense,
+        TroopCamp
+    }
 
     struct Building {
         BuildingType bType;
-        uint lastUpdated;
+        uint256 lastUpdated;
     }
 
-    mapping(uint => Building) public hexes;
-    mapping(uint => bool) public unlockedHexes;
+    mapping(uint256 => Building) public hexes;
+    mapping(uint256 => bool) public unlockedHexes;
 
-    event BuildPlaced(uint indexed hexIndex, BuildingType bType);
-    event ResourcesGenerated(uint newWheat, uint newGold);
-    event HexUnlocked(uint indexed hexIndex);
-    event StatsRepaired(uint newAttackStat, uint newDefenseStat, uint newWheat, uint newGold);
+    event BuildPlaced(uint256 indexed hexIndex, BuildingType bType);
+    event ResourcesGenerated(uint256 newWheat, uint256 newGold);
+    event HexUnlocked(uint256 indexed hexIndex);
+    event StatsRepaired(uint256 newAttackStat, uint256 newDefenseStat, uint256 newWheat, uint256 newGold);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this");
@@ -52,15 +57,15 @@ contract Island {
         stats.wheat = 100;
         stats.gold = 100;
         totalHexes = 5;
-        
-        for (uint i = 0; i < 5; i++) {
+
+        for (uint256 i = 0; i < 5; i++) {
             unlockedHexes[i] = true;
         }
     }
 
     function generateDailyResources() external onlyAuthorized {
-        uint farms = countBuildingsOfType(BuildingType.Farm);
-        uint mines = countBuildingsOfType(BuildingType.Mine);
+        uint256 farms = countBuildingsOfType(BuildingType.Farm);
+        uint256 mines = countBuildingsOfType(BuildingType.Mine);
 
         stats.wheat += farms * 5;
         stats.gold += mines * 5;
@@ -68,7 +73,7 @@ contract Island {
         emit ResourcesGenerated(stats.wheat, stats.gold);
     }
 
-    function placeBuilding(uint hexIndex, BuildingType bType) external onlyOwner {
+    function placeBuilding(uint256 hexIndex, BuildingType bType) external onlyOwner {
         require(unlockedHexes[hexIndex], "Hex not unlocked");
         require(hexes[hexIndex].bType == BuildingType.None, "Hex already occupied");
 
@@ -83,12 +88,12 @@ contract Island {
             revert("Invalid building type");
         }
 
-        hexes[hexIndex] = Building({ bType: bType, lastUpdated: block.timestamp });
+        hexes[hexIndex] = Building({bType: bType, lastUpdated: block.timestamp});
 
         emit BuildPlaced(hexIndex, bType);
     }
 
-    function unlockHex(uint hexIndex) external onlyOwner {
+    function unlockHex(uint256 hexIndex) external onlyOwner {
         require(hexIndex < MAX_HEXES, "Invalid hex index");
         require(!unlockedHexes[hexIndex], "Hex already unlocked");
         require(totalHexes < MAX_HEXES, "Maximum hexes reached");
@@ -101,19 +106,22 @@ contract Island {
         emit HexUnlocked(hexIndex);
     }
 
-    function updateStats(uint newAttack, uint newDefense, uint newWheat, uint newGold) external onlyAuthorized {
+    function updateStats(uint256 newAttack, uint256 newDefense, uint256 newWheat, uint256 newGold)
+        external
+        onlyAuthorized
+    {
         stats.attack = newAttack;
         stats.defense = newDefense;
         stats.wheat = newWheat;
         stats.gold = newGold;
     }
 
-    function repairStats(uint wheatSpent, bool isAttack) external onlyOwner {
+    function repairStats(uint256 wheatSpent, bool isAttack) external onlyOwner {
         require(stats.wheat >= wheatSpent, "Not enough wheat");
 
-        uint points = wheatSpent * 10;
-        uint towerCount = countBuildingsOfType(BuildingType.Defense) + countBuildingsOfType(BuildingType.TroopCamp);
-        uint maxCap = 100 + (towerCount * 100);
+        uint256 points = wheatSpent * 10;
+        uint256 towerCount = countBuildingsOfType(BuildingType.Defense) + countBuildingsOfType(BuildingType.TroopCamp);
+        uint256 maxCap = 100 + (towerCount * 100);
 
         stats.wheat -= wheatSpent;
 
@@ -126,53 +134,53 @@ contract Island {
         emit StatsRepaired(stats.attack, stats.defense, stats.wheat, stats.gold);
     }
 
-    function getStats() external view returns (uint attack, uint defense, uint wheat, uint gold) {
+    function getStats() external view returns (uint256 attack, uint256 defense, uint256 wheat, uint256 gold) {
         return (stats.attack, stats.defense, stats.wheat, stats.gold);
     }
 
-    function getDefenseStat() external view returns (uint) {
-        return stats.defense;
-    }
-
-    function getAttackStat() external view returns (uint) {
-        return stats.attack;
-    }
-
-    function getWheat() external view returns (uint) {
+    function getWheat() external view returns (uint256) {
         return stats.wheat;
     }
 
-    function getGold() external view returns (uint) {
+    function getGold() external view returns (uint256) {
         return stats.gold;
     }
 
-    function getTotalHexes() external view returns (uint) {
+    function getTotalHexes() external view returns (uint256) {
         return totalHexes;
     }
 
-    function isHexUnlocked(uint hexIndex) external view returns (bool) {
+    function isHexUnlocked(uint256 hexIndex) external view returns (bool) {
         return unlockedHexes[hexIndex];
     }
 
-    function getUnlockedHexes() external view returns (uint[] memory) {
-        uint[] memory unlockedList = new uint[](totalHexes);
-        uint count = 0;
-        
-        for (uint i = 0; i < MAX_HEXES && count < totalHexes; i++) {
+    function getUnlockedHexes() external view returns (uint256[] memory) {
+        uint256[] memory unlockedList = new uint256[](totalHexes);
+        uint256 count = 0;
+
+        for (uint256 i = 0; i < MAX_HEXES && count < totalHexes; i++) {
             if (unlockedHexes[i]) {
                 unlockedList[count] = i;
                 count++;
             }
         }
-        
+
         return unlockedList;
     }
 
-    function countBuildingsOfType(BuildingType bType) internal view returns (uint count) {
-        for (uint i = 0; i < MAX_HEXES; i++) {
+    function countBuildingsOfType(BuildingType bType) internal view returns (uint256 count) {
+        for (uint256 i = 0; i < MAX_HEXES; i++) {
             if (unlockedHexes[i] && hexes[i].bType == bType) {
                 count++;
             }
         }
+    }
+
+    function getAttackStat() external view returns (uint256) {
+        return countBuildingsOfType(BuildingType.TroopCamp) * 10;
+    }
+
+    function getDefenseStat() external view returns (uint256) {
+        return countBuildingsOfType(BuildingType.Defense) * 10;
     }
 }

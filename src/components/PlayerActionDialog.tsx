@@ -5,7 +5,7 @@ import { ethers } from "ethers"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Sword, Handshake, User, Coins, Wheat } from "lucide-react"
+import { Sword, Handshake, User, Coins, Wheat, Shield, Zap } from "lucide-react"
 import { useStoreContract } from "../EtherJs/useStoreContract.js"
 import { IslandLogicABI } from "../EtherJs/constants.js"
 
@@ -31,7 +31,7 @@ interface PlayerActionDialogProps {
 
 export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, onTrade }: PlayerActionDialogProps) {
   const { signer, contract } = useStoreContract() as any;
-  const [userStats, setUserStats] = useState({ wheat: 0, gold: 0 });
+  const [userStats, setUserStats] = useState({ attack: 0, defense: 0, wheat: 0, gold: 0 });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -40,8 +40,20 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
       
       try {
         setLoading(true);
+        
+        // Get wheat and gold from getStats()
         const stats = await contract.getStats();
+        
+        // Get attack and defense stats from contract functions
+        const attackStat = await contract.getAttackStat();
+        const defenseStat = await contract.getDefenseStat();
+        
+        console.log("Attack stat:", attackStat.toString());
+        console.log("Defense stat:", defenseStat.toString());
+        
         setUserStats({
+          attack: parseInt(attackStat.toString()),
+          defense: parseInt(defenseStat.toString()),
           wheat: parseInt(stats[2].toString()),
           gold: parseInt(stats[3].toString())
         });
@@ -96,6 +108,24 @@ export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, 
                     </div>
                     <span className="font-bold text-yellow-500">
                       {loading ? "..." : userStats.gold}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Zap className="w-4 h-4 text-red-500" />
+                      <span className="text-sm text-white">Attack</span>
+                    </div>
+                    <span className="font-bold text-red-500">
+                      {loading ? "..." : userStats.attack}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Shield className="w-4 h-4 text-blue-500" />
+                      <span className="text-sm text-white">Defense</span>
+                    </div>
+                    <span className="font-bold text-blue-500">
+                      {loading ? "..." : userStats.defense}
                     </span>
                   </div>
                 </div>
