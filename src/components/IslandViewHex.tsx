@@ -17,6 +17,9 @@ import BuildingSelectionModal from "./BuildingSelectionModal"
 import InstructionsModal from "./InstructionsModal"
 import Spline from "@splinetool/react-spline"
 
+import useStoreContract from "../EtherJs/useStoreContract.js"
+
+
 interface Hex {
   id: string
   position: { x: number; y: number }
@@ -132,6 +135,8 @@ const generateHexes = (): Hex[] => {
 }
 
 export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
+  const {contract, signer} = useStoreContract();
+
   const [hexes, setHexes] = useState<Hex[]>(generateHexes())
   const [selectedBuildingType, setSelectedBuildingType] = useState<Building["type"] | null>(null)
   const [selectedHex, setSelectedHex] = useState<string | null>(null)
