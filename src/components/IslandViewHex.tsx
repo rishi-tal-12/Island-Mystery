@@ -15,6 +15,7 @@ import TradeInboxModal from "./TradeInboxModal"
 import AttackHistoryModal from "./AttackHistoryModal"
 import BuildingSelectionModal from "./BuildingSelectionModal"
 import InstructionsModal from "./InstructionsModal"
+import Spline from "@splinetool/react-spline"
 
 interface Hex {
   id: string
@@ -80,39 +81,51 @@ const BUILDING_TYPES = [
 const generateHexes = (): Hex[] => {
   const hexes: Hex[] = []
 
-  // Define random positions scattered across the island area
-  const positions = [
-    { x: 200, y: 150 }, // Top left area
-    { x: 350, y: 120 }, // Top center
-    { x: 500, y: 180 }, // Top right
-    { x: 150, y: 250 }, // Left side
-    { x: 300, y: 220 }, // Center left
-    { x: 450, y: 240 }, // Center right
-    { x: 550, y: 280 }, // Right side
-    { x: 180, y: 350 }, // Bottom left
-    { x: 320, y: 380 }, // Bottom center
-    { x: 480, y: 340 }, // Bottom right
-    { x: 250, y: 300 }, // Mid left
-    { x: 400, y: 320 }, // Mid right
-    { x: 370, y: 180 }, // Upper center
-    { x: 280, y: 160 }, // Upper left
-    { x: 420, y: 160 }, // Upper right
-    { x: 200, y: 320 }, // Lower left
-    { x: 500, y: 310 }, // Lower right
-    { x: 350, y: 280 }, // Center
+  const hexSize = 80 // Increased from 50 to 80 for better visibility
+  const horizontalSpacing = hexSize * 0.9 // Tighter spacing for better fit
+  const verticalSpacing = hexSize * 0.8 // Adjusted vertical spacing
+
+  const containerWidth = 800 // Fixed container width
+  const containerHeight = 600 // Fixed container height
+  const centerX = containerWidth * 0.5
+  const centerY = containerHeight * 0.5
+
+  // Define the hexagonal grid structure: 3-4-5-4-2 pattern (18 total)
+  const rows = [
+    { count: 3, yOffset: -2 * verticalSpacing }, // Top row (3 hexes)
+    { count: 4, yOffset: -1 * verticalSpacing }, // Second row (4 hexes)
+    { count: 5, yOffset: 0 }, // Middle row (5 hexes - widest)
+    { count: 4, yOffset: 1 * verticalSpacing }, // Fourth row (4 hexes)
+    { count: 2, yOffset: 2 * verticalSpacing }, // Bottom row (2 hexes)
   ]
 
-  positions.forEach((pos, index) => {
-    const id = `hex-${index}`
-    // First 6 hexes are unlocked initially
-    const isUnlocked = index < 6
+  let hexIndex = 0
 
-    hexes.push({
-      id,
-      position: pos,
-      isUnlocked,
-      building: null,
-    })
+  rows.forEach((row, rowIndex) => {
+    // Calculate starting X position to center the row
+    const rowWidth = (row.count - 1) * horizontalSpacing
+    const startX = centerX - rowWidth / 2
+
+    // Offset every other row by half a hex width for proper hexagonal alignment
+    const xOffset = (rowIndex % 2) * (horizontalSpacing / 2)
+
+    for (let col = 0; col < row.count; col++) {
+      const x = startX + col * horizontalSpacing + xOffset
+      const y = centerY + row.yOffset
+
+      const id = `hex-${hexIndex}`
+      // First 6 hexes are unlocked initially
+      const isUnlocked = hexIndex < 6
+
+      hexes.push({
+        id,
+        position: { x, y },
+        isUnlocked,
+        building: null,
+      })
+
+      hexIndex++
+    }
   })
 
   return hexes
@@ -265,12 +278,18 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden z-0">
+        <Spline
+          scene="https://prod.spline.design/JznyXKXTtB5EOCd5/scene.splinecode"
+          className="absolute top-[-1] left-70 w-[150vw] h-[150vh] scale-[1.2] z-[0]"
+        />
+      </div>
+
       {/* Ocean Background */}
       <div
-        className="absolute inset-0 bg-center bg-contain bg-no-repeat"
+        className="absolute inset-0 bg-center bg-contain bg-background/50 bg-blue-900/60 bg-no-repeat"
         style={{
           backgroundImage: `url(${islandHex})`,
-          backgroundColor: "#1e40af", // Ocean blue background
         }}
       />
 
@@ -371,9 +390,16 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
       <div className="absolute inset-0 z-0">
         {/* Hexagonal Grid Overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative w-full h-full">
-            {hexes.map((hex) => {
-              const hexSize = 50
+          <div
+            className="relative bg-black/20 border-2 border-white/30 rounded-lg"
+            style={{ width: "800px", height: "600px" }}
+          >
+            <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-sm z-10">
+              Hexes: {hexes.length}/18 | Unlocked: {hexes.filter((h) => h.isUnlocked).length}
+            </div>
+
+            {hexes.map((hex, index) => {
+              const hexSize = 60 // Increased hex size
 
               return (
                 <div
@@ -385,37 +411,39 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
                         ? hex.building
                           ? "opacity-100"
                           : selectedBuildingType
-                            ? "bg-accent/40 border-2 border-accent"
-                            : "bg-white/20 border-2 border-white/40"
-                        : "opacity-30 cursor-not-allowed"
+                            ? "bg-green-500/40 border-2 border-green-400"
+                            : "bg-blue-500/30 border-2 border-blue-400"
+                        : "bg-gray-500/20 border-2 border-gray-400 cursor-not-allowed"
                     }
-                    ${selectedHex === hex.id ? "ring-2 ring-primary" : ""}
+                    ${selectedHex === hex.id ? "ring-4 ring-yellow-400" : ""}
                   `}
                   style={{
-                    left: `${hex.position.x}px`,
-                    top: `${hex.position.y}px`,
+                    left: `${hex.position.x - hexSize / 2}px`, // Center the hex on its position
+                    top: `${hex.position.y - hexSize / 2}px`, // Center the hex on its position
                     width: `${hexSize}px`,
                     height: `${hexSize}px`,
                     clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
                   }}
                   onClick={() => handleHexClick(hex)}
                 >
-                  <div className="w-full h-full flex items-center justify-center bg-white/10 backdrop-blur-sm rounded-lg">
+                  <div className="w-full h-full flex items-center justify-center bg-white/10 backdrop-blur-sm">
+                    <div className="absolute top-1 left-1 text-xs text-white bg-black/50 rounded px-1">{index + 1}</div>
+
                     {hex.building ? (
                       <div className="text-center">
                         <img
                           src={getBuildingTypeInfo(hex.building.type)?.icon || "/placeholder.svg"}
                           alt={getBuildingTypeInfo(hex.building.type)?.name}
-                          className="w-5 h-5 rounded mx-auto mb-1"
+                          className="w-8 h-8 rounded mx-auto mb-1" // Increased icon size
                         />
-                        <div className="text-xs font-bold text-white bg-black/50 rounded px-1">
+                        <div className="text-xs font-bold text-white bg-black/50 rou  nded px-1">
                           L{hex.building.level}
                         </div>
                       </div>
                     ) : hex.isUnlocked ? (
-                      <Plus className="w-3 h-3 text-white/80" />
+                      <Plus className="w-6 h-6 text-white/80" /> // Increased plus icon size
                     ) : (
-                      <div className="text-xs">🔒</div>
+                      <div className="text-lg">🔒</div> // Increased lock icon size
                     )}
                   </div>
                 </div>
