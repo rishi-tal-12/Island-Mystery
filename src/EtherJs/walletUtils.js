@@ -273,6 +273,10 @@ async function deployContract(signer, provider) {
         MainLogicABI, // ABI for Main Logic contract
         signer
       );
+
+      console.log("Main contract instance:", mainContractInstance);
+      console.log("contract instance:", deployedContract);
+      
       setMainContract(mainContractInstance);
 
       console.log("Contract, mainContract, and signer stored in Zustand store");

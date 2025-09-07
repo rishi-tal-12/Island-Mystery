@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Plus, Mail, Shield, Clock, Hammer, Info } from "lucide-react"
@@ -17,8 +17,7 @@ import BuildingSelectionModal from "./BuildingSelectionModal"
 import InstructionsModal from "./InstructionsModal"
 import Spline from "@splinetool/react-spline"
 
-import useStoreContract from "../EtherJs/useStoreContract.js"
-
+import { useStoreContract } from "../EtherJs/useStoreContract.js"
 
 interface Hex {
   id: string
@@ -80,7 +79,7 @@ const BUILDING_TYPES = [
   },
 ]
 
-// Generate hexagonal pattern: 3-4-4-4-3 formation (18 total hexes)
+// Generate hexagonal pattern: 3-4-5-4-2 formation (18 total)
 const generateHexes = (): Hex[] => {
   const hexes: Hex[] = []
 
@@ -134,14 +133,49 @@ const generateHexes = (): Hex[] => {
   return hexes
 }
 
+// helper: map solidity enum values to building type strings
+const solidityEnumToBuildingType = (enumVal: number): Building["type"] | null => {
+  // Island.sol enum: None=0, Farm=1, Mine=2, Defense=3, TroopCamp=4
+  switch (enumVal) {
+    case 1:
+      return "farm"
+    case 2:
+      return "mine"
+    case 3:
+      return "defense"
+    case 4:
+      return "troop"
+    default:
+      return null
+  }
+}
+
+// helper: map building type string to solidity enum number
+const buildingTypeToEnum = (t: Building["type"]) => {
+  switch (t) {
+    case "farm":
+      return 1
+    case "mine":
+      return 2
+    case "defense":
+      return 3
+    case "troop":
+      return 4
+    default:
+      return 0
+  }
+}
+
 export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
-  const {contract, signer} = useStoreContract();
+  // useStoreContract is expected to return contract instances and signer
+  // we accept several possible names defensively (contract, islandContract, mainContract)
+  const { contract, signer, mainContract, islandContract } = useStoreContract() as any
 
   const [hexes, setHexes] = useState<Hex[]>(generateHexes())
   const [selectedBuildingType, setSelectedBuildingType] = useState<Building["type"] | null>(null)
   const [selectedHex, setSelectedHex] = useState<string | null>(null)
 
-  // Hardcoded player resources
+  // replaced with on-chain values fetched on mount
   const [resources, setResources] = useState({ wheat: 50, gold: 100 })
   const [stats, setStats] = useState({ attack: 20, defense: 30 })
 
@@ -151,7 +185,12 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
   const [showInstructions, setShowInstructions] = useState(false)
   const [lastAttackTime, setLastAttackTime] = useState<Date | null>(null)
 
-  const [tradeOffers, setTradeOffers] = useState([
+  // transaction/loading state
+  const [txInProgress, setTxInProgress] = useState(false)
+  const [txMessage, setTxMessage] = useState<string | null>(null)
+
+  // TradeOffers: included a senderAddress field so we can pass it to mainContract.tradeExecute
+  const [tradeOffers, setTradeOffers] = useState<any[]>([
     {
       id: "1",
       fromPlayer: "Captain Hook",
@@ -160,6 +199,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
       offerAmount: 50,
       requestType: "wheat" as const,
       requestAmount: 30,
+      senderAddress: "0x0000000000000000000000000000000000000000", // placeholder if mainContract not available
       timestamp: new Date().toISOString(),
     },
     {
@@ -170,10 +210,12 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
       offerAmount: 40,
       requestType: "gold" as const,
       requestAmount: 25,
+      senderAddress: "0x0000000000000000000000000000000000000000",
       timestamp: new Date(Date.now() - 86400000).toISOString(),
     },
   ])
 
+  /// leave attack history for now, will implement later
   const [attackHistory] = useState([
     {
       id: "1",
@@ -208,52 +250,198 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
     return null
   }
 
-  const handleAcceptTrade = (
+  // fetch on-chain island state (stats, resources, unlocked hexes, building types)
+  const fetchIslandState = async () => {
+    try {
+      const islandInstance = contract || islandContract
+      if (!islandInstance) return
+
+      // set loading
+      setTxMessage("Fetching island state...")
+      setTxInProgress(true)
+
+      // get stats
+      if (typeof islandInstance.getStats === "function") {
+        const raw = await islandInstance.getStats()
+        // raw may be a tuple BigNumbers: (attack, defense, wheat, gold)
+        const [attackBN, defenseBN, wheatBN, goldBN] = raw
+        const attack = Number(attackBN.toString ? attackBN.toString() : attackBN)
+        const defense = Number(defenseBN.toString ? defenseBN.toString() : defenseBN)
+        const wheat = Number(wheatBN.toString ? wheatBN.toString() : wheatBN)
+        const gold = Number(goldBN.toString ? goldBN.toString() : goldBN)
+
+        setStats({ attack, defense })
+        setResources({ wheat, gold })
+      }
+
+      // get unlockedHexes and building info (if methods exist)
+      // island.sol: getTotalHexes(), isHexUnlocked(index), hexes(index) => (bType, lastUpdated)
+      let updatedHexes = generateHexes()
+      if (typeof islandInstance.getTotalHexes === "function") {
+        try {
+          const totalHexesBN = await islandInstance.getTotalHexes()
+          const totalHexCount = Number(totalHexesBN.toString ? totalHexesBN.toString() : totalHexesBN)
+
+          // for indices 0..17 check unlocked and hex info
+          for (let i = 0; i < updatedHexes.length; i++) {
+            let isUnlocked = false
+            try {
+              if (typeof islandInstance.isHexUnlocked === "function") {
+                const unlocked = await islandInstance.isHexUnlocked(i)
+                isUnlocked = !!unlocked
+              } else {
+                // fallback: treat first totalHexCount hexes as unlocked
+                isUnlocked = i < totalHexCount
+              }
+            } catch {
+              isUnlocked = i < totalHexCount
+            }
+
+            let building: Building | null = null
+            try {
+              if (typeof islandInstance.hexes === "function") {
+                const hexStruct = await islandInstance.hexes(i)
+                // solidity public getter returns tuple: (bType, lastUpdated)
+                const bTypeRaw = hexStruct[0]
+                const bTypeNum = Number(bTypeRaw.toString ? bTypeRaw.toString() : bTypeRaw)
+                const b = solidityEnumToBuildingType(bTypeNum)
+                if (b) {
+                  building = { type: b, level: 1 } // island doesn't store level, set 1
+                }
+              }
+            } catch {
+              // ignore, assume null
+            }
+
+            updatedHexes[i] = { ...updatedHexes[i], isUnlocked, building }
+          }
+        } catch {
+          // ignore, keep defaults
+        }
+      }
+
+      setHexes(updatedHexes)
+    } catch (err) {
+      console.error("fetchIslandState error:", err)
+    } finally {
+      setTxInProgress(false)
+      setTxMessage(null)
+    }
+  }
+
+  useEffect(() => {
+    fetchIslandState()
+    // intentionally no deps to fetch once on mount; you can add island or contract to re-fetch when they change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // When user accepts trade: call mainContract.tradeExecute(sender) on-chain (if available)
+  const handleAcceptTrade = async (
     tradeId: string,
     offerType: "gold" | "wheat",
     offerAmount: number,
     requestType: "gold" | "wheat",
     requestAmount: number,
   ) => {
-    // Update resources based on the trade
-    setResources((prev) => ({
-      ...prev,
-      [offerType]: prev[offerType] + offerAmount,
-      [requestType]: prev[requestType] - requestAmount,
-    }))
+    const trade = tradeOffers.find((t) => t.id === tradeId)
+    if (!trade) return
 
-    // Remove the accepted trade from the list
-    setTradeOffers((prev) => prev.filter((trade) => trade.id !== tradeId))
-    console.log("Trade accepted:", tradeId)
+    // If mainContract available, attempt on-chain execution. Otherwise, fallback to local update.
+    if (mainContract) {
+      if (!signer) {
+        console.warn("No signer available")
+        return
+      }
+
+      try {
+        setTxInProgress(true)
+        setTxMessage("Sending tradeExecute transaction...")
+
+        // the solidity function expects address sender (the original offerer)
+        const senderAddress = trade.senderAddress
+        const tx = await mainContract.connect(signer).tradeExecute(senderAddress)
+        await tx.wait()
+
+        // after confirmation: fetch updated island stats from chain to update UI
+        await fetchIslandState()
+
+        // remove trade from list
+        setTradeOffers((prev) => prev.filter((t) => t.id !== tradeId))
+        console.log("Trade accepted on-chain:", tradeId)
+      } catch (err) {
+        console.error("tradeExecute error:", err)
+      } finally {
+        setTxInProgress(false)
+        setTxMessage(null)
+      }
+    } else {
+      // fallback: update local UI and remove trade (previous behavior)
+      setResources((prev) => ({
+        ...prev,
+        [offerType]: prev[offerType] + offerAmount,
+        [requestType]: prev[requestType] - requestAmount,
+      }))
+
+      setTradeOffers((prev) => prev.filter((trade) => trade.id !== tradeId))
+      console.log("Trade accepted (local):", tradeId)
+    }
   }
 
+  // leave this for now, will implement later
   const handleRejectTrade = (tradeId: string) => {
     // Remove the rejected trade from the list
     setTradeOffers((prev) => prev.filter((trade) => trade.id !== tradeId))
     console.log("Trade rejected:", tradeId)
   }
 
-  const handleHexClick = (hex: Hex) => {
+  const handleHexClick = async (hex: Hex) => {
     if (!hex.isUnlocked) return
 
+    // placing building flow: if a building type selected, call on-chain placeBuilding and wait for confirmation
     if (selectedBuildingType && !hex.building) {
       const buildingType = BUILDING_TYPES.find((bt) => bt.type === selectedBuildingType)
       if (!buildingType) return
 
-      // Check if player has enough resources
-      if (resources.wheat >= buildingType.cost.wheat && resources.gold >= buildingType.cost.gold) {
-        // Place building
+      // Check if player has enough resources (local quick check)
+      if (!(resources.wheat >= buildingType.cost.wheat && resources.gold >= buildingType.cost.gold)) {
+        console.warn("Cannot afford building")
+        return
+      }
+
+      // If island contract available, call placeBuilding(hexIndex, bTypeEnum)
+      const islandInstance = contract || islandContract
+      if (islandInstance && typeof islandInstance.placeBuilding === "function" && signer) {
+        try {
+          setTxInProgress(true)
+          setTxMessage("Placing building on-chain...")
+
+          // parse hex index from id like "hex-4"
+          const hexIndex = Number(hex.id.split("-")[1])
+          const enumVal = buildingTypeToEnum(selectedBuildingType)
+
+          const tx = await islandInstance.connect(signer).placeBuilding(hexIndex, enumVal)
+          await tx.wait()
+
+          // after tx confirmed, re-fetch on-chain state to update UI
+          await fetchIslandState()
+          setSelectedBuildingType(null)
+        } catch (err) {
+          console.error("placeBuilding error:", err)
+        } finally {
+          setTxInProgress(false)
+          setTxMessage(null)
+        }
+      } else {
+        // fallback local behavior if no contract: update local state immediately
         setHexes((prevHexes) =>
-          prevHexes.map((h) => (h.id === hex.id ? { ...h, building: { type: selectedBuildingType, level: 1 } } : h)),
+          prevHexes.map((h) => (h.id === hex.id ? { ...h, building: { type: selectedBuildingType!, level: 1 } } : h)),
         )
 
-        // Deduct resources
         setResources((prev) => ({
           wheat: prev.wheat - buildingType.cost.wheat,
           gold: prev.gold - buildingType.cost.gold,
         }))
 
-        // Update stats if it's attack/defense building
         if (selectedBuildingType === "defense") {
           setStats((prev) => ({ ...prev, defense: prev.defense + 10 }))
         } else if (selectedBuildingType === "troop") {
@@ -307,6 +495,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
               variant="outline"
               size="sm"
               className="gap-2 bg-white/10 border-white/30 text-white hover:bg-white/20"
+              disabled={txInProgress}
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Map
@@ -347,6 +536,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
           <Button
             onClick={() => setShowTradeInbox(true)}
             className="bg-purple-600/80 hover:bg-purple-600 text-white border-purple-500/50 gap-2"
+            disabled={txInProgress}
           >
             <Mail className="w-4 h-4" />
             Trade Inbox ({tradeOffers.length})
@@ -355,6 +545,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
           <Button
             onClick={() => setShowAttackHistory(true)}
             className="bg-red-600/80 hover:bg-red-600 text-white border-red-500/50 gap-2"
+            disabled={txInProgress}
           >
             <Shield className="w-4 h-4" />
             Attack History
@@ -363,6 +554,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
           <Button
             onClick={() => setShowBuildingSelection(true)}
             className="bg-green-600/80 hover:bg-green-600 text-white border-green-500/50 gap-2"
+            disabled={txInProgress}
           >
             <Hammer className="w-4 h-4" />
             Build {selectedBuildingType && `(${BUILDING_TYPES.find((bt) => bt.type === selectedBuildingType)?.name})`}
@@ -372,6 +564,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
           <Button
             onClick={() => setShowInstructions(true)}
             className="bg-blue-600/80 hover:bg-blue-600 text-white border-blue-500/50 gap-2"
+            disabled={txInProgress}
           >
             <Info className="w-4 h-4" />
             Instructions
@@ -387,6 +580,12 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
                 <p className="text-orange-200 text-sm">Next attack available in: {getAttackCooldown()}</p>
               </div>
             </div>
+          </Card>
+        )}
+
+        {txInProgress && txMessage && (
+          <Card className="mb-6 bg-yellow-900/60 backdrop-blur-sm border-yellow-500/50">
+            <div className="p-3 text-sm text-white">{txMessage}</div>
           </Card>
         )}
       </div>
@@ -429,7 +628,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
                     height: `${hexSize}px`,
                     clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
                   }}
-                  onClick={() => handleHexClick(hex)}
+                  onClick={() => !txInProgress && handleHexClick(hex)}
                 >
                   <div className="w-full h-full flex items-center justify-center bg-white/10 backdrop-blur-sm">
                     <div className="absolute top-1 left-1 text-xs text-white bg-black/50 rounded px-1">{index + 1}</div>
@@ -464,6 +663,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
         trades={tradeOffers}
         onAcceptTrade={handleAcceptTrade}
         onRejectTrade={handleRejectTrade}
+        disabled={txInProgress}
       />
 
       <AttackHistoryModal
@@ -478,6 +678,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
         buildings={BUILDING_TYPES}
         resources={resources}
         onSelectBuilding={handleBuildingSelect}
+        canAfford={canAfford}
       />
 
       {/* Instructions Modal */}
