@@ -661,7 +661,7 @@ export default function IslandViewHex({ island, onBack }: IslandViewHexProps) {
         {/* Hexagonal Grid Overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div
-            className="relative bg-black/20 border-2 border-white/30 rounded-lg"
+            className="relative "
             style={{ width: "1200px", height: "900px" }}
           >
             <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-sm z-10">
