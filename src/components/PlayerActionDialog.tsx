@@ -1,9 +1,13 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { ethers } from "ethers"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Sword, Handshake, User, X } from "lucide-react"
+import { Sword, Handshake, User, Coins, Wheat, Shield, Zap } from "lucide-react"
+import { useStoreContract } from "../EtherJs/useStoreContract.js"
+import { IslandLogicABI } from "../EtherJs/constants.js"
 
 interface Island {
   id: string
@@ -12,6 +16,9 @@ interface Island {
   isPlayer: boolean
   position: { x: number; y: number }
   power: number
+  address: string
+  wheat?: number
+  gold?: number
 }
 
 interface PlayerActionDialogProps {
@@ -23,65 +30,172 @@ interface PlayerActionDialogProps {
 }
 
 export default function PlayerActionDialog({ island, isOpen, onClose, onAttack, onTrade }: PlayerActionDialogProps) {
-  if (!island) return null
+  const { signer, contract } = useStoreContract() as any;
+  const [userStats, setUserStats] = useState({ attack: 0, defense: 0, wheat: 0, gold: 0 });
+  const [loading, setLoading] = useState(false);
 
-  const canAttack = true // Simplified logic since power is removed
-  const canTrade = true // Always allow trade
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      if (!contract || !signer) return;
+      
+      try {
+        setLoading(true);
+        
+        // Get wheat and gold from getStats()
+        const stats = await contract.getStats();
+        
+        // Get attack and defense stats from contract functions
+        const attackStat = await contract.getAttackStat();
+        const defenseStat = await contract.getDefenseStat();
+        
+        console.log("Attack stat:", attackStat.toString());
+        console.log("Defense stat:", defenseStat.toString());
+        
+        setUserStats({
+          attack: parseInt(attackStat.toString()),
+          defense: parseInt(defenseStat.toString()),
+          wheat: parseInt(stats[2].toString()),
+          gold: parseInt(stats[3].toString())
+        });
+      } catch (error) {
+        console.error("Failed to fetch user stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isOpen && contract) {
+      fetchUserStats();
+    }
+  }, [isOpen, contract, signer]);
+
+  if (!island) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-sky-200 border-sky-300 rounded-2xl p-6">
-        <DialogHeader className="relative">
-          <DialogTitle className="flex items-center gap-2 text-gray-800 text-lg font-semibold">
-            <User className="w-5 h-5 text-gray-600" />
-            {island.name}
+      <DialogContent className="sm:max-w-lg bg-gray-900 border-gray-700 text-white">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <User className="w-5 h-5" />
+            Island Battle Stats
           </DialogTitle>
-          <button
-            onClick={onClose}
-            className="absolute -top-2 -right-2 w-8 h-8 bg-transparent hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
         </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Player Comparison Cards */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Your Stats */}
+            <Card className="p-4 bg-gray-800 border-gray-600">
+              <div className="text-center space-y-3">
+                <h3 className="font-semibold text-green-400 flex items-center justify-center gap-2">
+                  <User className="w-4 h-4" />
+                  Your Island
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Wheat className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm text-white">Wheat</span>
+                    </div>
+                    <span className="font-bold text-yellow-400">
+                      {loading ? "..." : userStats.wheat}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Coins className="w-4 h-4 text-yellow-500" />
+                      <span className="text-sm text-white">Gold</span>
+                    </div>
+                    <span className="font-bold text-yellow-500">
+                      {loading ? "..." : userStats.gold}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Zap className="w-4 h-4 text-red-500" />
+                      <span className="text-sm text-white">Attack</span>
+                    </div>
+                    <span className="font-bold text-red-500">
+                      {loading ? "..." : userStats.attack}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Shield className="w-4 h-4 text-blue-500" />
+                      <span className="text-sm text-white">Defense</span>
+                    </div>
+                    <span className="font-bold text-blue-500">
+                      {loading ? "..." : userStats.defense}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Card>
 
-        <div className="space-y-4 mt-4">
-          <Card className="p-4 bg-amber-100 border-amber-200 rounded-xl">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">Owner:</span>
-              <span className="text-sm text-gray-600 font-medium">{island.owner}</span>
+            {/* Target Stats */}
+            <Card className="p-4 bg-gray-800 border-gray-600">
+              <div className="text-center space-y-3">
+                <h3 className="font-semibold text-red-400 flex items-center justify-center gap-2">
+                  <User className="w-4 h-4" />
+                  {island.name}
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Wheat className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm text-white">Wheat</span>
+                    </div>
+                    <span className="font-bold text-yellow-400">
+                      {island.wheat ?? "?"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Coins className="w-4 h-4 text-yellow-500" />
+                      <span className="text-sm text-white">Gold</span>
+                    </div>
+                    <span className="font-bold text-yellow-500">
+                      {island.gold ?? "?"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Island Info */}
+          <Card className="p-3 bg-gray-800 border-gray-600">
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Owner of the Island:</span>
+                <span className="font-mono text-xs text-gray-300">
+                  {island.owner ? `${island.owner.slice(0, 6)}...${island.owner.slice(-4)}` : 'N/A'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Address of the Island:</span>
+                <span className="font-mono text-xs text-gray-300">
+                  {island.address ? `${island.address.slice(0, 6)}...${island.address.slice(-4)}` : 'N/A'}
+                </span>
+              </div>
             </div>
           </Card>
 
-          <div className="space-y-3">
-            <Button
-              className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white rounded-xl py-3 font-medium text-base shadow-sm"
-              onClick={() => {
-                onAttack(island)
-                onClose()
-              }}
-              disabled={!canAttack}
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Button 
+              onClick={() => onAttack(island)} 
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white border-0"
             >
-              <Sword className="w-4 h-4" />
+              <Sword className="w-4 h-4 mr-2" />
               Attack Island
             </Button>
-
-            <Button
-              className="w-full gap-2 bg-green-500 hover:bg-green-600 text-white rounded-xl py-3 font-medium text-base shadow-sm"
-              onClick={() => {
-                onTrade(island)
-                onClose()
-              }}
-              disabled={!canTrade}
+            <Button 
+              onClick={() => onTrade(island)} 
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-0"
             >
-              <Handshake className="w-4 h-4" />
+              <Handshake className="w-4 h-4 mr-2" />
               Propose Trade
-            </Button>
-
-            <Button
-              className="w-full bg-green-400 hover:bg-green-500 text-white rounded-xl py-3 font-medium text-base shadow-sm"
-              onClick={onClose}
-            >
-              Cancel
             </Button>
           </div>
         </div>

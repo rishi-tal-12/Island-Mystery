@@ -11,6 +11,7 @@ import AttackResultModal, { type AttackResult } from "@/components/AttackResultM
 import TradeProposalModal from "@/components/TradeProposalModal"
 import PVPWaitingScreen from "../components/PVPWaitingScreen"
 import PVPBattleScreen from "../components/PVPBattleScreen"
+import { useStoreContract } from "../EtherJs/useStoreContract.js"
 
 interface Island {
   id: string
@@ -19,11 +20,15 @@ interface Island {
   isPlayer: boolean
   position: { x: number; y: number }
   power: number
+  address: string
+  wheat?: number
+  gold?: number
 }
 
 type GameState = "landing" | "howToPlay" | "map" | "island" | "pvpWaiting" | "pvpBattle" | "pvpVictory"
 
 const Index = () => {
+  const { mainContract, signer } = useStoreContract() as any;
   const [gameState, setGameState] = useState<GameState>("landing")
   const [selectedIsland, setSelectedIsland] = useState<Island | null>(null)
   const [showActionDialog, setShowActionDialog] = useState(false)
@@ -31,6 +36,7 @@ const Index = () => {
   const [showAttackResult, setShowAttackResult] = useState(false)
   const [showTradeProposal, setShowTradeProposal] = useState(false)
   const [attackResult, setAttackResult] = useState<AttackResult | null>(null)
+  const [attackLoading, setAttackLoading] = useState(false)
 
   const handleSelectIsland = (island: Island) => {
     if (island.isPlayer) {
@@ -71,20 +77,51 @@ const Index = () => {
     setGameState("landing")
   }
 
-  const handleAttack = (island: Island) => {
-    const playerPower = 100
-    const enemyPower = island.power
-    const attackSuccess = Math.random() > 0.4 // 60% chance of success
-    const goldEarned = attackSuccess ? Math.floor(Math.random() * 50) + 20 : 0
+  const handleAttack = async (island: Island) => {
+    if (!mainContract || !signer || attackLoading) return;
 
-    setAttackResult({
-      won: attackSuccess,
-      goldEarned,
-      targetIsland: island.name,
-    })
+    try {
+      setAttackLoading(true);
+      setShowActionDialog(false);
 
-    setShowAttackResult(true)
-    setShowActionDialog(false)
+      // Call attack function on mainContract
+      const tx = await mainContract.connect(signer).attack(island.address);
+      await tx.wait();
+
+      // For now, we'll show a success result
+      // In a real implementation, you'd listen to events to get the actual result
+      setAttackResult({
+        won: true,
+        goldEarned: 25, // This would come from the contract event
+        targetIsland: island.name,
+      });
+
+      setShowAttackResult(true);
+
+      toast({
+        title: "Attack Successful!",
+        description: `Successfully attacked ${island.name}`,
+      });
+    } catch (err: any) {
+      console.error("Attack failed:", err);
+      
+      // Show failure result
+      setAttackResult({
+        won: false,
+        goldEarned: 0,
+        targetIsland: island.name,
+      });
+
+      setShowAttackResult(true);
+
+      toast({
+        title: "Attack Failed",
+        description: err.message || "Failed to attack island",
+        variant: "destructive",
+      });
+    } finally {
+      setAttackLoading(false);
+    }
   }
 
   const handleTrade = (island: Island) => {
