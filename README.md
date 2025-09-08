@@ -1,5 +1,6 @@
 # 🏝️ Arland- Island Strategy Game
 
+[![Play Arland Now](https://img.shields.io/badge/Play_Arland_Now-7289DA?style=for-the-badge&logo=google-chrome&logoColor=white)](https://island-mystery.vercel.app/)
 ![Island Mystery Banner](https://img.shields.io/badge/Island%20Mystery-Blockchain%20Strategy%20Game-blue?style=for-the-badge&logo=ethereum)
 
 [![Built with React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=flat&logo=react)](https://reactjs.org/)
@@ -10,8 +11,7 @@
 
 *A decentralized island strategy game where players build, battle, and trade on the Arbitrum blockchain*
 
-[🎮 Play Now](#getting-started) • [📖 Documentation](#documentation) • [🏗️ Architecture](#architecture) • [🤝 Contributing](#contributing)
-
+[🎮 Play Arland Now](#play-online) • [🎮 Game Mechanics](#game-mechanics) • [🏗️ Architecture](#architecture) • [🚀 Getting Started](#getting-started) • [🤝 Contributing](#contributing)
 
 
 ---
@@ -32,7 +32,7 @@
 
 ---
 
-## 🎮 Game Mechanics
+## 🎮 Game Mechanics  <a name="game-mechanics"></a>
 
 ### 🏗️ Island Building System
 
@@ -89,12 +89,13 @@ Players can create and execute bilateral trade proposals:
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture <a name="architecture"></a>
 
 ### 📋 Smart Contracts
 
 #### MainLogic Contract
-*Address*: 0x358b989C4c5F1b849E3C3310134371767915f76e
+
+*Address:* `0x358b989C4c5F1b849E3C3310134371767915f76e`
 
 Core game controller managing:
 - Island registration and discovery
@@ -102,13 +103,23 @@ Core game controller managing:
 - Trade request creation and execution
 - Daily resource generation for all islands (Chainlink Automation)
 
-solidity
-// Key Functions
-function getAllRegisteredIslands() external view returns (address[] memory)
-function attack(address defenderIsland) external
-function tradeRequest(address receiverIsland, uint256 wheatOffered, uint256 goldOffered, uint256 wheatRequested, uint256 goldRequested) external
-function tradeExecute(address sender) external
+Solidity Key Functions
 
+```
+function getAllRegisteredIslands() external view returns (address[] memory);
+
+function attack(address defenderIsland) external;
+
+function tradeRequest(
+    address receiverIsland, 
+    uint256 wheatOffered, 
+    uint256 goldOffered, 
+    uint256 wheatRequested, 
+    uint256 goldRequested
+) external;
+
+function tradeExecute(address sender) external;
+```
 
 #### Island Contract
 Individual player-owned contracts containing:
@@ -117,13 +128,17 @@ Individual player-owned contracts containing:
 - Resource generation and management
 - Building construction and upgrades
 
-solidity
-// Key Functions
-function placeBuilding(uint hexIndex, BuildingType bType) external
-function unlockHex(uint hexIndex) external
-function getStats() external view returns (uint attack, uint defense, uint wheat, uint gold)
-function repairStats(uint wheatSpent, bool isAttack) external
+Solidity Key Functions
 
+```
+function placeBuilding(uint hexIndex, BuildingType bType) external
+
+function unlockHex(uint hexIndex) external
+
+function getStats() external view returns (uint attack, uint defense, uint wheat, uint gold)
+
+function repairStats(uint wheatSpent, bool isAttack) external
+```
 
 #### PVP contract
 Contract for heavy calculations for colllision and trajectory written in rust stylus for efficiency:
@@ -168,7 +183,7 @@ src/
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started <a name="getting-started"></a>
 
 ### Prerequisites
 
@@ -176,35 +191,40 @@ src/
 - MetaMask or compatible Web3 wallet
 - Arbitrum Sepolia testnet ETH
 
-### Installation
+### Installation Guide
 
-1. *Clone the repository*
-   bash
-   git clone https://github.com/your-username/Island-Mystery.git
-   cd Island-Mystery
-   
+#### 1. Clone the repository
 
-2. *Install dependencies*
-   bash
-   npm install
-   
+```bash
+git clone https://github.com/rishi-tal-12/Island-Mystery
+cd Island-Mystery
+```
 
-3. *Configure environment*
-   bash
-   # Add Arbitrum Sepolia to your wallet
-   Network Name: Arbitrum Sepolia
-   RPC URL: https://sepolia-rollup.arbitrum.io/rpc
-   Chain ID: 421614
-   Currency: ETH
-   
+#### 2. Install dependencies
 
-4. *Start development server*
-   bash
-   npm run dev
-   
+```bash
+npm install
+```
 
-5. *Open your browser*
-   Navigate to http://localhost:8000 (Port might be different if already in use)
+#### 3. Configure environment
+
+Add **Arbitrum Sepolia** to your wallet:
+
+* **Network Name:** Arbitrum Sepolia
+* **RPC URL:** [https://sepolia-rollup.arbitrum.io/rpc](https://sepolia-rollup.arbitrum.io/rpc)
+* **Chain ID:** 421614
+* **Currency Symbol:** ETH
+
+#### 4. Start the development server
+
+```bash
+npm run dev
+```
+
+#### 5. Open your browser
+
+Go to 👉 [http://localhost:8000](http://localhost:8000)
+*(Port may vary if already in use.)*
 
 ### 🎮 How to Play
 
@@ -214,6 +234,14 @@ src/
 4. *Gather Resources*: Farms produce wheat, mines produce gold
 5. *Trade & Battle*: Interact with other players through trading and combat
 6. *Grow Your Empire*: Expand your island and increase your power
+
+---
+
+## 🕹️ Play Arland Now <a name="play-online"></a>
+
+The game is **live on the web**! Experience Arland directly in your browser—build your island, trade resources, and battle other players on Arbitrum Sepolia.
+
+[🎮 Jump In & Play](https://island-mystery.vercel.app/)
 
 ---
 
@@ -267,7 +295,7 @@ src/
 
 ---
 
-## 🤝 Contributing
+## 🤝 Contributing <a name="contributing"></a>
 
 We welcome contributions from the community! Here's how you can help:
 
@@ -296,12 +324,6 @@ We welcome contributions from the community! Here's how you can help:
 
 ---
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
 ## 🙏 Acknowledgments
 
 - *Arbitrum* for providing the scalable blockchain infrastructure
@@ -315,14 +337,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support & Community
 
 - 🐛 *Issues*: [GitHub Issues](https://github.com/rishi-tal-12/Island-Mystery/issues)
-- 💬 *Discussions*: [GitHub Discussions](https://github.com/rishi-tal-12/Island-Mystery/discussions)
-- 📧 *Email*: support@islandmystery.game
-- 🐦 *Twitter*: [@IslandMystery](https://twitter.com/IslandMystery)
-- 💬 *Discord*: [Join our community](https://discord.gg/islandmystery)
 
 ---
 
 *Built with ❤️ for the Arbitrum ecosystem*
 
 [![Star this repo](https://img.shields.io/github/stars/rishi-tal-12/Island-Mystery?style=social)](https://github.com/rishi-tal-12/Island-Mystery)
-[![Follow on Twitter](https://img.shields.io/twitter/follow/IslandMystery?style=social)](https://twitter.com/IslandMystery)
